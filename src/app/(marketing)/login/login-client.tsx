@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import {
   Card,
@@ -21,7 +21,6 @@ type SessionState = {
 
 export default function LoginClient() {
   const supabase = createClient();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
@@ -139,11 +138,11 @@ export default function LoginClient() {
       checked: true,
       email: null,
     });
-    router.refresh();
+    window.location.reload();
   }
 
   function handleContinue() {
-    router.push(next);
+    window.location.replace(next);
   }
 
   return (
@@ -240,4 +239,3 @@ export default function LoginClient() {
     </main>
   );
 }
-
