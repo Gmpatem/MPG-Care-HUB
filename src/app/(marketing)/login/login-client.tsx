@@ -76,8 +76,8 @@ export default function LoginClient() {
       return;
     }
 
-    router.push(next);
-    router.refresh();
+    await supabase.auth.getUser();
+    window.location.replace(next);
   }
 
   async function handleMagicLink() {
@@ -240,3 +240,4 @@ export default function LoginClient() {
     </main>
   );
 }
+
