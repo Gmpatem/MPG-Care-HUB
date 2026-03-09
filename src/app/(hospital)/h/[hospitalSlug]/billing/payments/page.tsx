@@ -84,9 +84,10 @@ export default async function PaymentsPage({ params }: PageProps) {
               ? payment.invoices[0]
               : payment.invoices;
 
-            const patient = invoice && Array.isArray(invoice.patients)
-              ? invoice.patients[0]
-              : invoice?.patients;
+            const patientData = invoice?.patients;
+            const patient = Array.isArray(patientData)
+              ? patientData[0]
+              : patientData;
 
             return (
               <div
