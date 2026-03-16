@@ -1,4 +1,15 @@
 import Link from "next/link";
+import {
+  AlertTriangle,
+  ClipboardList,
+  Pill,
+  Receipt,
+} from "lucide-react";
+
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { Button } from "@/components/ui/button";
 
 function fullName(patient: any) {
@@ -19,25 +30,15 @@ function statusTone(status: string) {
 
 function EmptyState({ hospitalSlug }: { hospitalSlug: string }) {
   return (
-    <div className="rounded-xl border border-dashed p-6">
-      <h3 className="text-base font-semibold">No prescriptions received yet</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The pharmacy queue only shows prescriptions already created by doctors for this hospital.
-      </p>
-      <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-        <p>To make prescriptions appear here:</p>
-        <ul className="list-disc pl-5">
-          <li>Open a patient from the Doctor workspace</li>
-          <li>Create a prescription from the doctor patient flow</li>
-          <li>Return here and the prescription should appear as incoming for dispensing</li>
-        </ul>
-      </div>
-      <div className="mt-4">
+    <WorkspaceEmptyState
+      title="No prescriptions received yet"
+      description="Doctor prescriptions will appear here automatically after they are created from the clinical workflow."
+      action={
         <Button asChild variant="outline">
           <Link href={`/h/${hospitalSlug}/doctor`}>Open Doctor Workspace</Link>
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -53,22 +54,21 @@ function Section({
   hospitalSlug: string;
 }) {
   return (
-    <section className="rounded-xl border">
-      <div className="border-b px-4 py-3">
-        <h2 className="font-medium">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
+    <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+      <WorkspaceSectionHeader title={title} description={description} />
 
       {prescriptions.length === 0 ? (
-        <div className="px-4 py-8 text-sm text-muted-foreground">No prescriptions in this section.</div>
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          No prescriptions in this section.
+        </div>
       ) : (
-        <div className="divide-y">
+        <div className="space-y-4">
           {prescriptions.map((prescription) => (
             <div
               key={prescription.id}
-              className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-start lg:justify-between"
+              className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
             >
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{fullName(prescription.patient)}</p>
 
@@ -152,72 +152,124 @@ export function PharmacyQueuePage({
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Pharmacy receiving and dispensing queue</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Pharmacy</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Receive doctor prescriptions, prepare them for dispensing, and track fulfillment progress for {hospitalName}.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Pharmacy Workspace"
+        title={hospitalName}
+        description="Receive doctor prescriptions, confirm stock availability, dispense medication safely, and track partial fulfillment without losing item-level visibility."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/pharmacy`}>Refresh Dispensing Queue</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Incoming Prescriptions"
+          value={incoming.length}
+          description="New prescriptions waiting for pharmacy action"
+          icon={<ClipboardList className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="In Progress"
+          value={partialCount}
+          description="Prescriptions partially dispensed or still being prepared"
+          icon={<Pill className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Completed"
+          value={dispensedCount}
+          description="Prescriptions fully dispensed"
+          icon={<Receipt className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Stock Issues"
+          value={noStockPrescriptionCount}
+          description="Prescriptions blocked by unavailable medication"
+          icon={<AlertTriangle className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Total Prescriptions</p>
-          <div className="mt-2 text-2xl font-semibold">{prescriptions.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Incoming From Doctors</p>
-          <div className="mt-2 text-2xl font-semibold">{incoming.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">In Progress</p>
-          <div className="mt-2 text-2xl font-semibold">{partial.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Completed</p>
-          <div className="mt-2 text-2xl font-semibold">{completed.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Needs Stock Attention</p>
-          <div className="mt-2 text-2xl font-semibold">{noStockPrescriptionCount}</div>
-        </div>
-      </div>
+      <div className="grid gap-6 lg:grid-cols-[1.55fr_.95fr]">
+        <div className="space-y-6">
+          {prescriptions.length === 0 ? (
+            <EmptyState hospitalSlug={hospitalSlug} />
+          ) : (
+            <>
+              <Section
+                title="Incoming from Doctors"
+                description="Start here first. These prescriptions have reached pharmacy and still need dispensing action."
+                prescriptions={incoming}
+                hospitalSlug={hospitalSlug}
+              />
 
-      {prescriptions.length === 0 ? (
-        <EmptyState hospitalSlug={hospitalSlug} />
-      ) : (
-        <>
-          <Section
-            title="Incoming From Doctors"
-            description="New prescriptions received from doctors and waiting for first dispensing action."
-            prescriptions={incoming}
-            hospitalSlug={hospitalSlug}
-          />
+              <Section
+                title="Partially Dispensed"
+                description="These prescriptions still have pending items or stock-related follow-up."
+                prescriptions={partial}
+                hospitalSlug={hospitalSlug}
+              />
 
-          <Section
-            title="Dispensing In Progress"
-            description="Prescriptions that already have partial dispensing activity and still need work."
-            prescriptions={partial}
-            hospitalSlug={hospitalSlug}
-          />
+              <Section
+                title="Completed"
+                description="Recently completed dispensing records."
+                prescriptions={completed}
+                hospitalSlug={hospitalSlug}
+              />
+            </>
+          )}
+        </div>
 
-          <Section
-            title="Completed Dispensing"
-            description="Fully dispensed prescriptions kept here for verification and review."
-            prescriptions={completed}
-            hospitalSlug={hospitalSlug}
-          />
-        </>
-      )}
+        <div className="space-y-6">
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Dispensing Flow"
+              description="Use this same rhythm for every prescription."
+            />
 
-      <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Connection note</p>
-        <p className="mt-1">
-          This queue reads directly from the hospital's <code>prescriptions</code> and <code>prescription_items</code> tables.
-          If the page is empty, no prescriptions have been created yet for this hospital or the current user cannot see them.
-        </p>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 1: Open the prescription</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Review prescriber details, item list, quantities, and special instructions.
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 2: Confirm stock by item</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Dispense what is available, flag missing stock, and keep partial fulfillment visible.
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 3: Complete or continue later</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Mark items as dispensed and return later if the prescription is only partially fulfilled.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Queue Summary"
+              description="Live pharmacy counts"
+            />
+
+            <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
+              <div className="rounded-xl border bg-muted/30 p-3">Total prescriptions: {prescriptions.length}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Active status: {activeCount}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Workflow partial: {partial.length}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Workflow completed: {completed.length}</div>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );

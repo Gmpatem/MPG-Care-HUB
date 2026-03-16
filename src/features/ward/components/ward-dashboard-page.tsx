@@ -1,4 +1,16 @@
 import Link from "next/link";
+import {
+  BedDouble,
+  Building2,
+  ClipboardCheck,
+  UserPlus,
+} from "lucide-react";
+
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { Button } from "@/components/ui/button";
 
 function fullName(patient: any) {
@@ -41,21 +53,25 @@ function WardSummarySection({
 }) {
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Ward Capacity</h2>
-        <p className="text-sm text-muted-foreground">
-          Current occupancy and discharge pressure by ward.
-        </p>
-      </div>
+      <WorkspaceSectionHeader
+        title="Ward Capacity"
+        description="Current occupancy and discharge pressure by ward."
+      />
 
       {wards.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          No wards configured yet.
-        </div>
+        <WorkspaceEmptyState
+          title="No wards configured yet"
+          description="Create wards and beds first so admissions can be assigned safely."
+          action={
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/config`}>Open Ward Setup</Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {wards.map((ward) => (
-            <div key={ward.id} className="rounded-xl border p-4">
+            <div key={ward.id} className="rounded-xl border bg-background p-4">
               <div className="space-y-1">
                 <h3 className="font-medium">{ward.name}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -77,7 +93,7 @@ function WardSummarySection({
                 </Button>
 
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`/h/${hospitalSlug}/ward/config`}>Ward Config</Link>
+                  <Link href={`/h/${hospitalSlug}/ward/config`}>Ward Setup</Link>
                 </Button>
               </div>
             </div>
@@ -97,23 +113,22 @@ function PatientWorklistSection({
 }) {
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Admitted Patients Worklist</h2>
-        <p className="text-sm text-muted-foreground">
-          Active inpatient cases ready for chart review, transfers, monitoring, and discharge work.
-        </p>
-      </div>
+      <WorkspaceSectionHeader
+        title="Active Ward Worklist"
+        description="Admitted patients ready for chart review, transfers, monitoring, and discharge work."
+      />
 
       {admissions.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          No active admissions in ward right now.
-        </div>
+        <WorkspaceEmptyState
+          title="No active admissions in ward right now"
+          description="Once patients are admitted and assigned into ward workflow, they will appear here."
+        />
       ) : (
         <div className="space-y-4">
           {admissions.map((admission) => (
             <div
               key={admission.id}
-              className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-start lg:justify-between"
+              className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
             >
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -130,9 +145,7 @@ function PatientWorklistSection({
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                  {admission.patient?.patient_number ?? "No patient number"} ·
-                  Ward {admission.ward?.name ?? "—"} ·
-                  Bed {admission.bed?.bed_number ?? "Unassigned"}
+                  {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
                 </p>
 
                 <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
@@ -201,125 +214,149 @@ export function WardDashboardPage({
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-xl border p-5">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Ward Operations</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Ward</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage admitted patients, monitor ward occupancy, and move active cases toward discharge for {hospitalName}.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Ward Workspace"
+        title={hospitalName}
+        description="Manage admitted patients, maintain bed visibility, monitor discharge pressure, and move active inpatient cases safely through ward operations."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/ward/admissions`}>Admission Intake</Link>
+            </Button>
 
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href={`/h/${hospitalSlug}/ward/admissions`}>Admission Intake</Link>
-          </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/census`}>Open Census</Link>
+            </Button>
 
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/census`}>Open Census</Link>
-          </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
+            </Button>
 
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
-          </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/config`}>Ward Setup</Link>
+            </Button>
+          </>
+        }
+      />
 
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/config`}>Ward Config</Link>
-          </Button>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Active Admissions"
+          value={stats.active_admissions}
+          description="Patients currently in ward workflow"
+          icon={<Building2 className="h-4 w-4" />}
+        />
+
+        <WorkspaceStatCard
+          title="Discharge Requested"
+          value={stats.discharge_requested}
+          description="Patients needing discharge handling first"
+          icon={<ClipboardCheck className="h-4 w-4" />}
+        />
+
+        <WorkspaceStatCard
+          title="Available Beds"
+          value={stats.available_beds}
+          description={`${stats.total_beds} total beds configured`}
+          icon={<BedDouble className="h-4 w-4" />}
+        />
+
+        <WorkspaceStatCard
+          title="New In 24 Hours"
+          value={stats.newly_admitted}
+          description="Recently admitted patients entering ward flow"
+          icon={<UserPlus className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Wards</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.total_wards}</div>
-        </div>
+      <div className="grid gap-6 lg:grid-cols-[1.55fr_.95fr]">
+        <div className="space-y-6">
+          {dischargeRequestedAdmissions.length > 0 ? (
+            <section className="space-y-4">
+              <WorkspaceSectionHeader
+                title="Discharge Priority"
+                description="These admissions already have discharge requested and should be reviewed first."
+              />
 
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Active Admissions</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.active_admissions}</div>
-        </div>
+              <div className="space-y-4">
+                {dischargeRequestedAdmissions.map((admission) => (
+                  <div
+                    key={admission.id}
+                    className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4 lg:flex-row lg:items-start lg:justify-between"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{fullName(admission.patient)}</p>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                          discharge requested
+                        </span>
+                      </div>
 
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Discharge Requested</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.discharge_requested}</div>
-        </div>
+                      <p className="text-sm text-muted-foreground">
+                        {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
+                      </p>
 
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">New In 24h</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.newly_admitted}</div>
-        </div>
+                      <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                        <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
+                        <p>Stay duration: {formatDuration(admission.admitted_at)}</p>
+                        <p>Requested at: {formatDateTime(admission.discharge_requested_at)}</p>
+                        <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
+                      </div>
+                    </div>
 
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Occupied Beds</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.occupied_beds}</div>
-        </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild>
+                        <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
+                          Open Chart
+                        </Link>
+                      </Button>
 
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Available Beds</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.available_beds}</div>
-        </div>
-      </div>
-
-      {dischargeRequestedAdmissions.length > 0 ? (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Discharge Priority</h2>
-            <p className="text-sm text-muted-foreground">
-              These admissions already have discharge requested and should be reviewed first.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {dischargeRequestedAdmissions.map((admission) => (
-              <div
-                key={admission.id}
-                className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4 lg:flex-row lg:items-start lg:justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{fullName(admission.patient)}</p>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                      discharge requested
-                    </span>
+                      <Button asChild variant="outline">
+                        <Link href={`/h/${hospitalSlug}/ward/discharges`}>
+                          Open Discharge Queue
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {admission.patient?.patient_number ?? "No patient number"} ·
-                    Ward {admission.ward?.name ?? "—"} ·
-                    Bed {admission.bed?.bed_number ?? "Unassigned"}
-                  </p>
-
-                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                    <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
-                    <p>Stay duration: {formatDuration(admission.admitted_at)}</p>
-                    <p>Requested at: {formatDateTime(admission.discharge_requested_at)}</p>
-                    <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild>
-                    <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
-                      Open Chart
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline">
-                    <Link href={`/h/${hospitalSlug}/ward/discharges`}>
-                      Open Discharge Queue
-                    </Link>
-                  </Button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+            </section>
+          ) : null}
 
-      <WardSummarySection hospitalSlug={hospitalSlug} wards={wards} />
+          <PatientWorklistSection hospitalSlug={hospitalSlug} admissions={standardAdmissions} />
+        </div>
 
-      <PatientWorklistSection hospitalSlug={hospitalSlug} admissions={standardAdmissions} />
+        <div className="space-y-6">
+          <WardSummarySection hospitalSlug={hospitalSlug} wards={wards} />
+
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Ward Flow"
+              description="Core inpatient operations"
+            />
+
+            <div className="mt-4 space-y-3">
+              <WorkflowStepCard
+                step="Step 1"
+                title="Admit and assign"
+                description="Admit the patient, assign ward and bed, and confirm the inpatient chart is ready."
+              />
+
+              <WorkflowStepCard
+                step="Step 2"
+                title="Monitor ward status"
+                description="Use census and active charts to track occupancy, transfers, and inpatient progress."
+              />
+
+              <WorkflowStepCard
+                step="Step 3"
+                title="Move discharge cases first"
+                description="Prioritize charts with discharge requested so ward capacity is updated promptly."
+              />
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }

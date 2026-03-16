@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { FinalizePatientDischargeForm } from "@/features/ward/components/finalize-patient-discharge-form";
-import { BillingSummaryCard } from "@/features/billing/components/billing-summary-card";
+import { ClipboardCheck, FileCheck2, ListChecks, TriangleAlert } from "lucide-react";
 
-function fullName(patient: {
-  first_name: string;
-  middle_name: string | null;
-  last_name: string;
-} | null) {
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { Button } from "@/components/ui/button";
+
+function fullName(patient: any) {
   if (!patient) return "Unknown patient";
   return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
 }
@@ -17,168 +17,143 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
+function checklistProgress(admission: any) {
+  const total = admission.checklist_total ?? 0;
+  const completed = admission.checklist_completed ?? 0;
+  return `${completed}/${total}`;
+}
+
 export function WardDischargeQueuePage({
   hospitalSlug,
   hospitalName,
-  admissions = [],
+  admissions,
 }: {
   hospitalSlug: string;
   hospitalName: string;
-  admissions?: Array<{
-    id: string;
-    patient: {
-      patient_number: string | null;
-      first_name: string;
-      middle_name: string | null;
-      last_name: string;
-      phone: string | null;
-    } | null;
-    ward: {
-      name: string;
-      code: string | null;
-    } | null;
-    bed: {
-      bed_number: string;
-    } | null;
-    admitting_doctor: {
-      full_name: string;
-    } | null;
-    admitted_at: string;
-    discharge_requested_at: string | null;
-    admission_reason: string | null;
-    readiness: {
-      dischargeRequested: boolean;
-      nurseCleared: boolean;
-      checklistReady: boolean;
-      checklistCompleted: number;
-      checklistRequiredTotal: number;
-      balanceDue: number;
-      billingReady: boolean;
-      readyForFinalDischarge: boolean;
-    };
-    billing: {
-      invoiceCount: number;
-      totalAmount: number;
-      amountPaid: number;
-      balanceDue: number;
-      cleared: boolean;
-    };
-  }>;
+  admissions: any[];
 }) {
+  const readyCount = admissions.filter((row) => row.checklist_ready === true).length;
+  const blockedCount = admissions.filter((row) => row.checklist_ready !== true).length;
+
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-xl border p-5">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Ward Discharge Queue</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Discharges</h1>
-          <p className="text-sm text-muted-foreground">
-            Review discharge readiness, resolve blockers, and finalize discharge for {hospitalName}.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Discharge Queue"
+        title={hospitalName}
+        description="Review discharge-requested admissions first, confirm checklist completion, and clear patients out of ward flow safely."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/ward`}>Ward Workspace</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/census`}>Open Census</Link>
+            </Button>
+          </>
+        }
+      />
 
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href={`/h/${hospitalSlug}/ward`}>Open Ward</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/nurse`}>Open Nurse Dashboard</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/census`}>Open Census</Link>
-          </Button>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Discharge Requested"
+          value={admissions.length}
+          description="Admissions already marked for discharge handling"
+          icon={<ClipboardCheck className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Checklist Ready"
+          value={readyCount}
+          description="Admissions that can move forward safely"
+          icon={<FileCheck2 className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Still Blocked"
+          value={blockedCount}
+          description="Admissions missing discharge requirements"
+          icon={<TriangleAlert className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Queue Reviewed"
+          value={readyCount + blockedCount}
+          description="Current discharge queue load"
+          icon={<ListChecks className="h-4 w-4" />}
+        />
       </div>
 
       {admissions.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-          No discharge-requested admissions right now.
-        </div>
+        <WorkspaceEmptyState
+          title="No discharge requests yet"
+          description="Patients marked for discharge by the care team will appear here automatically."
+          action={
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward`}>Return to Ward Workspace</Link>
+            </Button>
+          }
+        />
       ) : (
-        <div className="space-y-5">
-          {admissions.map((admission) => (
-            <section key={admission.id} className="rounded-xl border p-5">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-semibold">{fullName(admission.patient)}</h2>
-                      {admission.readiness.readyForFinalDischarge ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                          ready
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                          blocked
-                        </span>
-                      )}
-                    </div>
+        <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+          <WorkspaceSectionHeader
+            title="Patients Awaiting Discharge"
+            description="Handle patients with completed checklists first so beds are released quickly."
+          />
 
-                    <p className="text-sm text-muted-foreground">
-                      {admission.patient?.patient_number ?? "No patient number"} ·
-                      Ward {admission.ward?.name ?? "—"} ·
-                      Bed {admission.bed?.bed_number ?? "Unassigned"}
-                    </p>
+          <div className="space-y-4">
+            {admissions.map((admission) => (
+              <div
+                key={admission.id}
+                className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{fullName(admission.patient)}</p>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                      discharge requested
+                    </span>
 
-                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                      <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
-                      <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
-                      <p>Requested: {formatDateTime(admission.discharge_requested_at)}</p>
-                      <p>Phone: {admission.patient?.phone ?? "—"}</p>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground">
-                      Reason: {admission.admission_reason ?? "—"}
-                    </p>
-
-                    <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
-                      <div className={`rounded-md px-3 py-2 ${admission.readiness.dischargeRequested ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        Doctor Request: {admission.readiness.dischargeRequested ? "Yes" : "No"}
-                      </div>
-                      <div className={`rounded-md px-3 py-2 ${admission.readiness.checklistReady ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        Checklist: {admission.readiness.checklistCompleted}/{admission.readiness.checklistRequiredTotal}
-                      </div>
-                      <div className={`rounded-md px-3 py-2 ${admission.readiness.billingReady ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        Billing: {admission.readiness.billingReady ? "Cleared" : `Balance ${admission.readiness.balanceDue.toFixed(2)}`}
-                      </div>
-                      <div className={`rounded-md px-3 py-2 ${admission.readiness.readyForFinalDischarge ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        Final Status: {admission.readiness.readyForFinalDischarge ? "Ready" : "Blocked"}
-                      </div>
-                    </div>
+                    {admission.checklist_ready ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                        checklist ready
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">
+                        checklist incomplete
+                      </span>
+                    )}
                   </div>
 
-                  <div className="w-full max-w-md space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
-                          Open Ward Chart
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/h/${hospitalSlug}/nurse/admissions/${admission.id}`}>
-                          Open Nurse Chart
-                        </Link>
-                      </Button>
-                    </div>
+                  <p className="text-sm text-muted-foreground">
+                    {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
+                  </p>
 
-                    <FinalizePatientDischargeForm
-                      hospitalSlug={hospitalSlug}
-                      admissionId={admission.id}
-                      disabled={!admission.readiness.readyForFinalDischarge}
-                    />
+                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                    <p>Requested at: {formatDateTime(admission.discharge_requested_at)}</p>
+                    <p>Admitted at: {formatDateTime(admission.admitted_at)}</p>
+                    <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
+                    <p>Checklist: {checklistProgress(admission)}</p>
                   </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Reason: {admission.admission_reason ?? "—"}
+                  </p>
                 </div>
 
-                <BillingSummaryCard
-                  invoiceCount={admission.billing.invoiceCount}
-                  totalAmount={admission.billing.totalAmount}
-                  amountPaid={admission.billing.amountPaid}
-                  balanceDue={admission.billing.balanceDue}
-                  cleared={admission.billing.cleared}
-                />
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild>
+                    <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
+                      Open Discharge Chart
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline">
+                    <Link href={`/h/${hospitalSlug}/census`}>
+                      Census
+                    </Link>
+                  </Button>
+                </div>
               </div>
-            </section>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
     </main>
   );

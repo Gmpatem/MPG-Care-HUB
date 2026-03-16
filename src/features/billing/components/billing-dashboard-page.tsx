@@ -1,5 +1,12 @@
 import Link from "next/link";
+import { CreditCard, FileText, Receipt, Wallet } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 
 function fullName(patient: any) {
   if (!patient) return "Unknown patient";
@@ -9,6 +16,10 @@ function fullName(patient: any) {
 function formatDateTime(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString();
+}
+
+function formatMoney(currency: string, value: unknown) {
+  return `${currency} ${Number(value ?? 0).toFixed(2)}`;
 }
 
 export function BillingDashboardPage({
@@ -30,72 +41,84 @@ export function BillingDashboardPage({
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Billing dashboard</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Financial overview for {hospitalName}.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/billing/invoices`}>Invoices</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/billing/payments`}>Payments</Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/h/${hospitalSlug}/billing/invoices/new`}>New Invoice</Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Total invoices</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.totalInvoices}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Open invoices</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.openInvoices}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Paid invoices</p>
-          <div className="mt-2 text-2xl font-semibold">{stats.paidInvoices}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Total billed</p>
-          <div className="mt-2 text-2xl font-semibold">{currency} {Number(stats.totalBilled ?? 0).toFixed(2)}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Collected</p>
-          <div className="mt-2 text-2xl font-semibold">{currency} {Number(stats.totalCollected ?? 0).toFixed(2)}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Outstanding</p>
-          <div className="mt-2 text-2xl font-semibold">{currency} {Number(stats.totalOutstanding ?? 0).toFixed(2)}</div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-xl border">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="font-medium">Recent invoices</h2>
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/billing/invoices`}>View all</Link>
+      <WorkspacePageHeader
+        eyebrow="Billing Workspace"
+        title={hospitalName}
+        description="Review open balances, post payments, and keep financial clearance visible for patient discharge and service completion."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/billing/invoices/new`}>Create Invoice</Link>
             </Button>
-          </div>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/billing/invoices`}>Invoice List</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/billing/payments`}>Payments</Link>
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Total Invoices"
+          value={stats.totalInvoices}
+          description={`${stats.openInvoices} still open`}
+          icon={<FileText className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Total Billed"
+          value={formatMoney(currency, stats.totalBilled)}
+          description="All invoice value recorded"
+          icon={<Receipt className="h-4 w-4" />}
+          valueClassName="text-xl"
+        />
+        <WorkspaceStatCard
+          title="Collected"
+          value={formatMoney(currency, stats.totalCollected)}
+          description="Payments already posted"
+          icon={<Wallet className="h-4 w-4" />}
+          valueClassName="text-xl"
+        />
+        <WorkspaceStatCard
+          title="Outstanding"
+          value={formatMoney(currency, stats.totalOutstanding)}
+          description="Balances still due"
+          icon={<CreditCard className="h-4 w-4" />}
+          valueClassName="text-xl"
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_.9fr]">
+        <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+          <WorkspaceSectionHeader
+            title="Recent Invoices"
+            description="Use this list to spot open balances and jump into invoice detail quickly."
+            actions={
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/h/${hospitalSlug}/billing/invoices`}>View All Invoices</Link>
+              </Button>
+            }
+          />
 
           {invoices.length === 0 ? (
-            <div className="px-4 py-8 text-sm text-muted-foreground">
-              No invoices yet.
-            </div>
+            <WorkspaceEmptyState
+              title="No invoices yet"
+              description="Create the first invoice to begin billing activity for the hospital."
+              action={
+                <Button asChild>
+                  <Link href={`/h/${hospitalSlug}/billing/invoices/new`}>Create Invoice</Link>
+                </Button>
+              }
+            />
           ) : (
-            <div className="divide-y">
+            <div className="space-y-4">
               {invoices.map((invoice) => (
-                <div key={invoice.id} className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+                <div
+                  key={invoice.id}
+                  className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
+                >
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium">{invoice.invoice_number}</p>
@@ -103,65 +126,95 @@ export function BillingDashboardPage({
                         {invoice.status}
                       </span>
                     </div>
+
                     <p className="text-sm text-muted-foreground">
                       {fullName(invoice.patient)} · {invoice.patient?.patient_number ?? "No patient number"}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Issued: {formatDateTime(invoice.issued_at)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Total {Number(invoice.total_amount ?? 0).toFixed(2)} · Paid {Number(invoice.amount_paid ?? 0).toFixed(2)} · Balance {Number(invoice.balance_due ?? 0).toFixed(2)}
-                    </p>
+
+                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                      <p>Issued: {formatDateTime(invoice.issued_at)}</p>
+                      <p>Total: {formatMoney(currency, invoice.total_amount)}</p>
+                      <p>Paid: {formatMoney(currency, invoice.amount_paid)}</p>
+                      <p>Balance: {formatMoney(currency, invoice.balance_due)}</p>
+                    </div>
                   </div>
 
-                  <Button asChild>
-                    <Link href={`/h/${hospitalSlug}/billing/invoices/${invoice.id}`}>Open</Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button asChild>
+                      <Link href={`/h/${hospitalSlug}/billing/invoices/${invoice.id}`}>Open Invoice</Link>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        <section className="rounded-xl border">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="font-medium">Recent payments</h2>
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/billing/payments`}>View all</Link>
-            </Button>
-          </div>
+        <div className="space-y-6">
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Recent Payments"
+              description="Most recently posted payment activity"
+              actions={
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/h/${hospitalSlug}/billing/payments`}>View All Payments</Link>
+                </Button>
+              }
+            />
 
-          {payments.length === 0 ? (
-            <div className="px-4 py-8 text-sm text-muted-foreground">
-              No payments posted yet.
-            </div>
-          ) : (
-            <div className="divide-y">
-              {payments.map((payment) => (
-                <div key={payment.id} className="px-4 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{Number(payment.amount ?? 0).toFixed(2)}</p>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                      {payment.method}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                      {payment.status}
-                    </span>
+            {payments.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                No payments posted yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {payments.map((payment) => (
+                  <div key={payment.id} className="rounded-xl border bg-background p-4 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">
+                      {formatMoney(currency, payment.amount)}
+                    </p>
+                    <p className="mt-1">
+                      {payment.receipt_number ?? "No receipt number"} · {payment.method ?? "Unknown method"}
+                    </p>
+                    <p className="mt-1">
+                      {formatDateTime(payment.payment_date)}
+                    </p>
+                    <p className="mt-1">
+                      Payer: {payment.payer_name ?? "—"}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Invoice: {payment.invoice?.invoice_number ?? "—"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Receipt: {payment.receipt_number ?? "—"} · Payer: {payment.payer_name ?? "—"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateTime(payment.payment_date)}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Billing Flow"
+              description="Standard finance routine"
+            />
+
+            <div className="mt-4 space-y-3">
+              <WorkflowStepCard
+                step="Step 1"
+                title="Open or create the invoice"
+                description="Make sure charges are visible before requesting payment or discharge clearance."
+              />
+
+              <WorkflowStepCard
+                step="Step 2"
+                title="Post the payment"
+                description="Record the amount, method, and reference cleanly so balances stay accurate."
+              />
+
+              <WorkflowStepCard
+                step="Step 3"
+                title="Recheck balance due"
+                description="Use remaining balance to determine whether the patient is financially cleared."
+              />
             </div>
-          )}
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );

@@ -1,9 +1,24 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  FlaskConical,
+  Search,
+  Stethoscope,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { DoctorQueueList } from "@/features/doctor-workflow/components/doctor-queue-list";
 import { DoctorStats } from "@/features/doctor-workflow/components/doctor-stats";
-import type { DoctorQueueRow, DoctorStageCounts, DoctorSummary } from "@/features/doctor-workflow/types";
+import type {
+  DoctorQueueRow,
+  DoctorStageCounts,
+  DoctorSummary,
+} from "@/features/doctor-workflow/types";
 
 type HospitalLite = {
   id: string;
@@ -24,23 +39,20 @@ export function DoctorDashboard({
 }) {
   return (
     <main className="space-y-6">
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-5">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Doctor Workflow</p>
-            <h1 className="text-3xl font-bold">{hospital.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              Review initial consultations, track investigations, make final clinical decisions, and send prescriptions into Pharmacy.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
+      <WorkspacePageHeader
+        eyebrow="Doctor Workspace"
+        title={hospital.name}
+        description="Review consultations, request investigations, revisit results, and make final clinical decisions that move patients to pharmacy, ward, discharge, or follow-up."
+        actions={
+          <>
             <Button asChild>
-              <Link href={`/h/${hospital.slug}/encounters`}>Open Encounters</Link>
+              <Link href={`/h/${hospital.slug}/encounters`}>Open Visit Queue</Link>
             </Button>
 
             <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor/prescriptions/new`}>Write Prescription</Link>
+              <Link href={`/h/${hospital.slug}/doctor/prescriptions/new`}>
+                Write Prescription
+              </Link>
             </Button>
 
             <Button asChild variant="outline">
@@ -48,43 +60,73 @@ export function DoctorDashboard({
             </Button>
 
             <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/frontdesk/queue`}>Front Desk Queue</Link>
+              <Link href={`/h/${hospital.slug}/doctor/rounds`}>Open Rounds</Link>
             </Button>
-
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor/rounds`}>Rounds</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
       <DoctorStats summary={summary} stageCounts={stageCounts} />
 
       <div className="grid gap-6 lg:grid-cols-[1.7fr_.9fr]">
-        <DoctorQueueList hospitalSlug={hospital.slug} rows={queueRows} />
+        <div className="space-y-4">
+          <WorkspaceSectionHeader
+            title="Doctor Work Queue"
+            description="Clinical visits arranged by encounter stage so the next action is always visible."
+            actions={
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/h/${hospital.slug}/encounters`}>
+                  Open All Encounters
+                </Link>
+              </Button>
+            }
+          />
 
-        <Card>
+          <DoctorQueueList hospitalSlug={hospital.slug} rows={queueRows} />
+        </div>
+
+        <Card className="border-border/70">
           <CardContent className="space-y-4 py-5">
-            <div>
-              <h2 className="text-lg font-semibold">Clinical Flow</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                One encounter should carry the patient from review to investigation to final decision.
-              </p>
-            </div>
+            <WorkspaceSectionHeader
+              title="Clinical Flow"
+              description="Keep one encounter active from first review to final decision."
+            />
 
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div className="rounded-lg bg-muted p-3">
-                New consultation starts the encounter and records the initial clinical picture.
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                If labs are needed, keep the same encounter active and move it to awaiting results.
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                After results review, make a final decision: prescribe, admit, refer, or follow up.
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                Prescriptions created by doctors are received by Pharmacy for dispensing through the pharmacy queue.
-              </div>
+            <div className="space-y-3">
+              <WorkflowStepCard
+                step="Step 1"
+                title="Start the visit"
+                description="Record the complaint, history, assessment, plan, and initial decisions."
+                icon={<Stethoscope className="h-4 w-4 text-muted-foreground" />}
+              />
+
+              <WorkflowStepCard
+                step="Step 2"
+                title="Request and review labs"
+                description="Keep the same encounter active while the case waits for investigation results."
+                icon={<FlaskConical className="h-4 w-4 text-muted-foreground" />}
+              />
+
+              <WorkflowStepCard
+                step="Step 3"
+                title="Make the final decision"
+                description="Prescribe, admit, refer, discharge, or schedule follow-up from the same flow."
+                icon={<ClipboardCheck className="h-4 w-4 text-muted-foreground" />}
+              />
+
+              <Button asChild variant="outline" className="w-full justify-between">
+                <Link href={`/h/${hospital.slug}/encounters`}>
+                  Open Clinical Encounters
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full justify-between">
+                <Link href={`/h/${hospital.slug}/patients`}>
+                  Search Patient Record
+                  <Search className="h-4 w-4" />
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

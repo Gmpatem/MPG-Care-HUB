@@ -1,0 +1,6 @@
+Folder PATH listing for volume Drive III
+Volume serial number is 7EC7-0EBB
+E:\MPG-CARE-HUB\SRC_SCAN
+Invalid path - \MPG-CARE-HUB\SRC_SCAN
+No subfolders exist 
+

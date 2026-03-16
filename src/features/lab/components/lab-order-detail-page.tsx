@@ -1,5 +1,10 @@
 import Link from "next/link";
+import { ClipboardList, FlaskConical, ListChecks, TriangleAlert } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { LabOrderItemResultForm } from "@/features/lab/components/lab-order-item-result-form";
 import { CompleteLabOrderButton } from "@/features/lab/components/complete-lab-order-button";
 
@@ -24,62 +29,94 @@ export function LabOrderDetailPage({
   items: any[];
 }) {
   const enteredCount = items.filter((item) => item.entered_at || item.result_text).length;
+  const completedCount = items.filter((item) => item.status === "completed" || item.status === "verified").length;
+  const pendingCount = items.length - completedCount;
   const isCompleted = order.status === "completed";
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Lab order detail</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Lab Order</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review test items, enter results, and complete this lab order.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Lab Result Entry"
+        title="Lab Order"
+        description="Review the patient, complete result entry item by item, then mark the order complete so the doctor can continue the encounter."
+        actions={
+          <>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/lab/orders`}>Back to Lab Queue</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
+            </Button>
+          </>
+        }
+      />
 
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/lab/orders`}>Back to Queue</Link>
-          </Button>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Requested Items"
+          value={items.length}
+          description="Total investigations included on this order"
+          icon={<ClipboardList className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Results Entered"
+          value={enteredCount}
+          description="Items with at least partial result data entered"
+          icon={<FlaskConical className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Completed Items"
+          value={completedCount}
+          description="Items already marked complete or verified"
+          icon={<ListChecks className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Still Pending"
+          value={pendingCount}
+          description="Items still needing laboratory action"
+          icon={<TriangleAlert className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 lg:grid-cols-[1.25fr_.95fr]">
         <div className="space-y-6">
-          <div className="rounded-xl border p-5">
-            <p className="text-sm text-muted-foreground">Patient</p>
-            <h2 className="mt-1 text-lg font-semibold">{fullName(order.patient)}</h2>
-            <p className="text-sm text-muted-foreground">
-              {order.patient?.patient_number ?? "No patient number"} · {order.patient?.sex ?? "unknown"} · {order.patient?.phone ?? "No phone"}
-            </p>
-          </div>
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Patient and Order Summary"
+              description="Confirm patient identity, ordering doctor, and urgency before entering or verifying results."
+            />
 
-          <div className="rounded-xl border p-5">
-            <h2 className="text-lg font-semibold">Order Summary</h2>
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <p><span className="font-medium">Status:</span> {order.status ?? "ordered"}</p>
-              <p><span className="font-medium">Priority:</span> {order.priority ?? "routine"}</p>
-              <p><span className="font-medium">Ordered At:</span> {formatDateTime(order.ordered_at)}</p>
-              <p><span className="font-medium">Completed At:</span> {formatDateTime(order.completed_at)}</p>
-              <p><span className="font-medium">Ordering Doctor:</span> {order.ordered_by_staff?.full_name ?? "Unknown"}</p>
-              <p><span className="font-medium">Results Entered:</span> {enteredCount} / {items.length}</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">Patient</p>
+                <h2 className="mt-1 text-lg font-semibold">{fullName(order.patient)}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {order.patient?.patient_number ?? "No patient number"} · {order.patient?.sex ?? "unknown"} · {order.patient?.phone ?? "No phone"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                <p>Status: {order.status ?? "ordered"}</p>
+                <p className="mt-1">Priority: {order.priority ?? "routine"}</p>
+                <p className="mt-1">Ordered at: {formatDateTime(order.ordered_at)}</p>
+                <p className="mt-1">Completed at: {formatDateTime(order.completed_at)}</p>
+                <p className="mt-1">Ordering doctor: {order.ordered_by_staff?.full_name ?? "Unknown"}</p>
+              </div>
             </div>
 
-            <div className="mt-4">
-              <p className="font-medium">Clinical Notes</p>
+            <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+              <p className="text-sm font-medium">Clinical Notes</p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                 {order.clinical_notes || "—"}
               </p>
             </div>
-          </div>
+          </section>
 
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Test Items</h2>
-              <p className="text-sm text-muted-foreground">
-                Enter results for each requested test.
-              </p>
-            </div>
+          <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Requested Test Items"
+              description="Enter or update results for each item on this order."
+            />
 
             {items.length === 0 ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
@@ -95,15 +132,15 @@ export function LabOrderDetailPage({
                 />
               ))
             )}
-          </div>
+          </section>
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border p-5">
-            <h2 className="text-lg font-semibold">Completion</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Mark this order completed after results have been entered for all items.
-            </p>
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Completion"
+              description="Complete the order after all required results are entered."
+            />
 
             <div className="mt-4">
               <CompleteLabOrderButton
@@ -117,15 +154,42 @@ export function LabOrderDetailPage({
               <p className="mt-3 text-sm text-emerald-700">
                 This order has already been marked completed.
               </p>
-            ) : null}
-          </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Mark the order complete only after all necessary test results are ready for doctor review.
+              </p>
+            )}
+          </section>
 
-          <div className="rounded-xl border p-5">
-            <h2 className="text-lg font-semibold">Next integration step</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              After this queue is working, the next patch should surface completed results back inside doctor encounter and workspace pages.
-            </p>
-          </div>
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Lab Flow"
+              description="Safe result-entry routine"
+            />
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 1: Confirm the patient and request</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Always verify the patient, doctor, and urgency level before entering results.
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 2: Record item by item</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter results per requested test so incomplete work remains visible and traceable.
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Step 3: Return the case to doctor review</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Completing the order moves the case back into the clinical decision workflow.
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </main>

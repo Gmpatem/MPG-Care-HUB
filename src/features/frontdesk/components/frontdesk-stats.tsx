@@ -1,27 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { FrontdeskSummary } from "@/features/frontdesk/types";
+import {
+  CalendarDays,
+  ClipboardCheck,
+  CreditCard,
+  Siren,
+} from "lucide-react";
 
-function StatCard({
-  title,
-  value,
-  description,
-}: {
-  title: string;
-  value: string | number;
-  description: string;
-}) {
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-semibold tracking-tight">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import type { FrontdeskSummary } from "@/features/frontdesk/types";
 
 export function FrontdeskStats({
   summary,
@@ -40,25 +25,32 @@ export function FrontdeskStats({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <StatCard
+      <WorkspaceStatCard
         title="Appointments Today"
         value={data.appointments_today ?? 0}
-        description="Scheduled and walk-in visits for today"
+        description="Scheduled and walk-in visits planned for today"
+        icon={<CalendarDays className="h-4 w-4" />}
       />
-      <StatCard
+
+      <WorkspaceStatCard
         title="Checked In"
         value={data.checked_in_today ?? 0}
-        description="Patients already received at front desk"
+        description="Patients already received at the front desk"
+        icon={<ClipboardCheck className="h-4 w-4" />}
       />
-      <StatCard
+
+      <WorkspaceStatCard
         title="Emergency Visits"
         value={data.emergency_visits_today ?? 0}
-        description="Today’s visits marked as emergency"
+        description="Visits marked urgent or emergency"
+        icon={<Siren className="h-4 w-4" />}
       />
-      <StatCard
+
+      <WorkspaceStatCard
         title="Payments Today"
         value={data.payments_today_count ?? 0}
         description={`Collected: ${Number(data.payments_today_amount ?? 0).toFixed(2)}`}
+        icon={<CreditCard className="h-4 w-4" />}
       />
     </div>
   );

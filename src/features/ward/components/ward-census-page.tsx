@@ -1,4 +1,10 @@
 import Link from "next/link";
+import { BedDouble, Building2, ClipboardCheck, Users } from "lucide-react";
+
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { Button } from "@/components/ui/button";
 
 function fullName(patient: any) {
@@ -6,9 +12,10 @@ function fullName(patient: any) {
   return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
+function statusTone(status: string) {
+  if (status === "occupied") return "bg-emerald-100 text-emerald-700";
+  if (status === "reserved") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-700";
 }
 
 export function WardCensusPage({
@@ -22,109 +29,147 @@ export function WardCensusPage({
   wards: any[];
   admissions: any[];
 }) {
+  const totalBeds = wards.reduce((sum, ward) => sum + (ward.total_beds ?? 0), 0);
+  const occupiedBeds = wards.reduce((sum, ward) => sum + (ward.occupied_beds ?? 0), 0);
+  const freeBeds = wards.reduce((sum, ward) => sum + (ward.available_beds ?? 0), 0);
+  const activeAdmissions =
+    admissions?.length ??
+    wards.reduce((sum, ward) => sum + (ward.active_admissions ?? 0), 0);
+
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Ward census</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Census</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View current admissions, bed occupancy, and ward distribution for {hospitalName}.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Ward Census"
+        title={hospitalName}
+        description="View ward occupancy, bed usage, and current inpatient placement at a glance so the team can assign and release beds confidently."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/ward`}>Ward Workspace</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/config`}>Ward Setup</Link>
+            </Button>
+          </>
+        }
+      />
 
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/admissions`}>Admissions Queue</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharges</Link>
-          </Button>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Configured Beds"
+          value={totalBeds}
+          description="Beds currently configured across wards"
+          icon={<BedDouble className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Occupied Beds"
+          value={occupiedBeds}
+          description="Beds currently assigned to active admissions"
+          icon={<Users className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Available Beds"
+          value={freeBeds}
+          description="Beds ready for new assignment"
+          icon={<Building2 className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Discharge Pressure"
+          value={wards.reduce((sum, ward) => sum + (ward.discharge_requested_count ?? 0), 0)}
+          description="Beds likely to free up after discharge handling"
+          icon={<ClipboardCheck className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Active admissions</p>
-          <div className="mt-2 text-2xl font-semibold">{admissions.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Configured wards</p>
-          <div className="mt-2 text-2xl font-semibold">{wards.length}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Occupied beds</p>
-          <div className="mt-2 text-2xl font-semibold">
-            {wards.reduce((sum: number, ward: any) => sum + Number(ward.occupied_beds ?? 0), 0)}
-          </div>
-        </div>
-      </div>
+      {wards.length === 0 ? (
+        <WorkspaceEmptyState
+          title="No census data available yet"
+          description="Create wards and beds first, then active admissions will appear here as the ward grows."
+          action={
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/config`}>Open Ward Setup</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          {wards.map((ward) => (
+            <section key={ward.id} className="space-y-4 rounded-2xl border p-4 sm:p-5">
+              <WorkspaceSectionHeader
+                title={ward.name}
+                description={`${ward.code ?? "No code"} · ${ward.ward_type ?? "general"} · ${ward.active_admissions ?? 0} active admissions`}
+              />
 
-      <div className="grid gap-6">
-        {wards.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-            No wards configured yet. Create wards and beds to make the inpatient flow clearer.
-          </div>
-        ) : (
-          wards.map((ward: any) => (
-            <section key={ward.id} className="rounded-xl border">
-              <div className="border-b px-4 py-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">{ward.name}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {ward.code ?? "No code"} · {ward.ward_type ?? "general"} · Beds {ward.occupied_beds}/{ward.active_beds}
-                    </p>
-                  </div>
-                </div>
+              <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border bg-muted/30 p-3">Total beds: {ward.total_beds ?? 0}</div>
+                <div className="rounded-xl border bg-muted/30 p-3">Occupied: {ward.occupied_beds ?? 0}</div>
+                <div className="rounded-xl border bg-muted/30 p-3">Available: {ward.available_beds ?? 0}</div>
+                <div className="rounded-xl border bg-muted/30 p-3">Discharge requested: {ward.discharge_requested_count ?? 0}</div>
               </div>
 
-              {(ward.patients ?? []).length === 0 ? (
-                <div className="px-4 py-6 text-sm text-muted-foreground">
-                  No admitted patients currently assigned to this ward.
+              {(ward.beds ?? []).length === 0 ? (
+                <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  No bed records available for this ward.
                 </div>
               ) : (
-                <div className="divide-y">
-                  {ward.patients.map((admission: any) => (
-                    <div
-                      key={admission.id}
-                      className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-start lg:justify-between"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">{fullName(admission.patient)}</p>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                            {admission.status}
-                          </span>
-                          {admission.discharge_requested ? (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                              discharge requested
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <p className="text-sm text-muted-foreground">
-                          {admission.patient?.patient_number ?? "No patient number"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground">
-                          Admitted: {formatDateTime(admission.admitted_at)}
-                        </p>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {ward.beds.map((bed: any) => (
+                    <div key={bed.id} className="rounded-xl border bg-background p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">Bed {bed.bed_number}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs ${statusTone(bed.status)}`}>
+                          {bed.status}
+                        </span>
                       </div>
 
-                      <Button asChild>
-                        <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
-                          Open Admission
-                        </Link>
-                      </Button>
+                      {bed.current_admission ? (
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                          <p>Patient: {fullName(bed.current_admission.patient)}</p>
+                          <p>Patient no: {bed.current_admission.patient?.patient_number ?? "—"}</p>
+                          <p>Doctor: {bed.current_admission.admitting_doctor?.full_name ?? "Unknown"}</p>
+
+                          {bed.current_admission.discharge_requested ? (
+                            <p className="font-medium text-amber-700">Discharge requested</p>
+                          ) : null}
+
+                          <div className="pt-2">
+                            <Button asChild size="sm">
+                              <Link href={`/h/${hospitalSlug}/ward/admissions/${bed.current_admission.id}`}>
+                                Open Chart
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-sm text-muted-foreground">
+                          No patient currently assigned.
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </section>
-          ))
-        )}
-      </div>
+          ))}
+
+          <section className="rounded-2xl border p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Census Summary"
+              description="Current inpatient placement across all wards"
+            />
+
+            <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border bg-muted/30 p-3">Active admissions: {activeAdmissions}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Occupied beds: {occupiedBeds}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Free beds: {freeBeds}</div>
+              <div className="rounded-xl border bg-muted/30 p-3">Total beds: {totalBeds}</div>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

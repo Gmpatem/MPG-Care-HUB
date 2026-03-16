@@ -1,132 +1,200 @@
 import Link from "next/link";
+import { ClipboardList, FlaskConical, ListChecks, TriangleAlert } from "lucide-react";
+
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { Button } from "@/components/ui/button";
-import type { LabOrderRow } from "@/features/lab/server/get-lab-orders-page-data";
 
-type LabOrdersPageProps = {
-  hospitalSlug: string;
-  hospitalName: string;
-  orders: LabOrderRow[];
-};
-
-function fullName(patient: LabOrderRow["patient"]) {
+function fullName(patient: any) {
   if (!patient) return "Unknown patient";
   return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return "—";
-  const date = new Date(value);
-  return date.toLocaleString();
+  return new Date(value).toLocaleString();
+}
+
+function orderTone(status: string) {
+  if (status === "completed") return "bg-emerald-100 text-emerald-700";
+  if (status === "in_progress" || status === "sample_collected") return "bg-blue-100 text-blue-700";
+  if (status === "ordered") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+function bucketOrders(orders: any[]) {
+  return {
+    pending: orders.filter((row) => row.status === "ordered"),
+    inProgress: orders.filter((row) => row.status === "in_progress" || row.status === "sample_collected"),
+    completed: orders.filter((row) => row.status === "completed"),
+  };
+}
+
+function OrdersSection({
+  title,
+  description,
+  hospitalSlug,
+  orders,
+}: {
+  title: string;
+  description: string;
+  hospitalSlug: string;
+  orders: any[];
+}) {
+  return (
+    <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+      <WorkspaceSectionHeader title={title} description={description} />
+
+      {orders.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          No lab orders in this section.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
+            >
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{fullName(order.patient)}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${orderTone(order.status)}`}>
+                    {order.status}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                    {order.priority ?? "routine"}
+                  </span>
+                  {(order.pending_items_count ?? 0) > 0 ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                      {order.pending_items_count} pending items
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  {order.patient?.patient_number ?? "No patient number"} · Ordered {formatDateTime(order.ordered_at)}
+                </p>
+
+                <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                  <p>Doctor: {order.ordered_by_staff?.full_name ?? "Unknown"}</p>
+                  <p>Encounter: {order.encounter_id ?? "—"}</p>
+                  <p>Total items: {order.total_items_count ?? 0}</p>
+                  <p>Completed items: {order.completed_items_count ?? 0}</p>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Clinical note: {order.clinical_notes ?? "—"}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button asChild>
+                  <Link href={`/h/${hospitalSlug}/lab/orders/${order.id}`}>
+                    Open Result Entry
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function LabOrdersPage({
   hospitalSlug,
   hospitalName,
   orders,
-}: LabOrdersPageProps) {
-  const orderedCount = orders.filter((order) => order.status !== "completed").length;
-  const completedCount = orders.filter((order) => order.status === "completed").length;
+}: {
+  hospitalSlug: string;
+  hospitalName: string;
+  orders: any[];
+}) {
+  const buckets = bucketOrders(orders);
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Laboratory queue</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Lab Orders</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review pending and completed lab work for {hospitalName}.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Lab Orders Queue"
+        title={hospitalName}
+        description="Review incoming requests, enter results by item, and return completed investigations back to the doctor workflow."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/lab`}>Lab Dashboard</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
+            </Button>
+          </>
+        }
+      />
 
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/lab`}>Back to Lab</Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/h/${hospitalSlug}/lab/tests`}>Manage Test Catalog</Link>
-          </Button>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Awaiting Result Entry"
+          value={buckets.pending.length}
+          description="Freshly ordered tests not yet worked on"
+          icon={<ClipboardList className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="In Progress"
+          value={buckets.inProgress.length}
+          description="Orders being processed or partially completed"
+          icon={<FlaskConical className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Completed"
+          value={buckets.completed.length}
+          description="Finished investigations ready for review"
+          icon={<ListChecks className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="High Priority"
+          value={orders.filter((row) => row.priority === "urgent" || row.priority === "stat").length}
+          description="Urgent orders needing faster turnaround"
+          icon={<TriangleAlert className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Total orders</p>
-          <div className="mt-2 text-2xl font-semibold">{orders.length}</div>
+      {orders.length === 0 ? (
+        <WorkspaceEmptyState
+          title="No lab orders yet"
+          description="Doctor lab requests will appear here automatically once they are created from an encounter."
+          action={
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/doctor`}>Open Doctor Workspace</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          <OrdersSection
+            title="Awaiting Result Entry"
+            description="Start here first. These orders are newly received and still need action."
+            hospitalSlug={hospitalSlug}
+            orders={buckets.pending}
+          />
+
+          <OrdersSection
+            title="In Progress"
+            description="Orders with active work already started."
+            hospitalSlug={hospitalSlug}
+            orders={buckets.inProgress}
+          />
+
+          <OrdersSection
+            title="Completed"
+            description="Finished investigations that have already moved through the lab."
+            hospitalSlug={hospitalSlug}
+            orders={buckets.completed}
+          />
         </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Pending / in lab</p>
-          <div className="mt-2 text-2xl font-semibold">{orderedCount}</div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <p className="text-sm text-muted-foreground">Completed</p>
-          <div className="mt-2 text-2xl font-semibold">{completedCount}</div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border">
-        <div className="border-b px-4 py-3">
-          <h2 className="font-medium">Lab work queue</h2>
-        </div>
-
-        {orders.length === 0 ? (
-          <div className="px-4 py-8 text-sm text-muted-foreground">
-            No lab orders yet. Once doctors place lab requests, they will appear here.
-          </div>
-        ) : (
-          <div className="divide-y">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-start lg:justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{fullName(order.patient)}</p>
-
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        order.status === "completed"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {order.status === "completed" ? "Completed" : "Pending"}
-                    </span>
-
-                    {order.priority ? (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 uppercase">
-                        {order.priority}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {order.patient?.patient_number ?? "No patient number"} · Ordered {formatDateTime(order.ordered_at)}
-                  </p>
-
-                  <p className="text-sm text-muted-foreground">
-                    Doctor: {order.ordered_by_staff?.full_name ?? "Unassigned"}
-                  </p>
-
-                  <p className="text-sm text-muted-foreground">
-                    Results entered: {order.entered_count} / {order.item_count}
-                  </p>
-
-                  {order.clinical_notes ? (
-                    <p className="text-sm text-muted-foreground">{order.clinical_notes}</p>
-                  ) : null}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button asChild>
-                    <Link href={`/h/${hospitalSlug}/lab/orders/${order.id}`}>Open Order</Link>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </main>
   );
 }
