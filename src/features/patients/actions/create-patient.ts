@@ -60,7 +60,7 @@ export async function createPatient(formData: FormData) {
       address_text: parsed.data.address_text || null,
       emergency_contact_name: parsed.data.emergency_contact_name || null,
       emergency_contact_phone: parsed.data.emergency_contact_phone || null,
-      created_by: user.id,
+      created_by_user_id: user.id,
     })
     .select("id")
     .single();
@@ -72,3 +72,4 @@ export async function createPatient(formData: FormData) {
   revalidatePath(`/h/${hospital.slug}/patients`);
   redirect(`/h/${hospital.slug}/patients/${inserted.id}`);
 }
+

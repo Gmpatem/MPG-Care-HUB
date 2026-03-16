@@ -64,7 +64,7 @@ export async function createAppointment(formData: FormData) {
       status: "scheduled",
       reason: parsed.data.reason || null,
       notes: parsed.data.notes || null,
-      created_by: user.id,
+      created_by_user_id: user.id,
     })
     .select("id")
     .single();
@@ -76,3 +76,4 @@ export async function createAppointment(formData: FormData) {
   revalidatePath(`/h/${hospital.slug}/appointments`);
   redirect(`/h/${hospital.slug}/appointments/${inserted.id}`);
 }
+

@@ -56,7 +56,7 @@ export async function createHospital(formData: FormData) {
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
       address_text: parsed.data.address_text || null,
-      created_by: user.id,
+      created_by_user_id: user.id,
     })
     .select("id")
     .single();
@@ -70,3 +70,4 @@ export async function createHospital(formData: FormData) {
 
   redirect("/platform/hospitals");
 }
+

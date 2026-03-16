@@ -25,6 +25,8 @@ export async function createEncounter(formData: FormData) {
     assessment_notes: String(formData.get("assessment_notes") ?? ""),
     plan_notes: String(formData.get("plan_notes") ?? ""),
     diagnosis_text: String(formData.get("diagnosis_text") ?? ""),
+    final_notes: String(formData.get("final_notes") ?? ""),
+    requires_lab: String(formData.get("requires_lab") ?? ""),
     temperature: String(formData.get("temperature") ?? ""),
     blood_pressure: String(formData.get("blood_pressure") ?? ""),
     pulse_rate: String(formData.get("pulse_rate") ?? ""),
@@ -83,6 +85,8 @@ export async function createEncounter(formData: FormData) {
     weight_kg: parsed.data.weight_kg || null,
   };
 
+  const requiresLab = parsed.data.requires_lab === "on";
+
   const { data: inserted, error } = await supabase
     .from("encounters")
     .insert({
@@ -90,14 +94,18 @@ export async function createEncounter(formData: FormData) {
       patient_id: parsed.data.patient_id,
       appointment_id: parsed.data.appointment_id || null,
       encounter_datetime: new Date().toISOString(),
+      started_at: new Date().toISOString(),
       status: "draft",
+      stage: requiresLab ? "awaiting_results" : "initial_review",
+      requires_lab: requiresLab,
       chief_complaint: parsed.data.chief_complaint || null,
       history_notes: parsed.data.history_notes || null,
       assessment_notes: parsed.data.assessment_notes || null,
       plan_notes: parsed.data.plan_notes || null,
       diagnosis_text: parsed.data.diagnosis_text || null,
+      final_notes: parsed.data.final_notes || null,
       vitals_json: vitals,
-      created_by: user.id,
+      created_by_user_id: user.id,
     })
     .select("id")
     .single();

@@ -80,18 +80,5 @@ export default async function PlatformPage() {
     redirect(`/h/${hospital.slug}`);
   }
 
-  return (
-    <main className="space-y-4">
-      <h1 className="text-2xl font-semibold">No workspace access yet</h1>
-      <p className="text-muted-foreground">
-        Your account is signed in, but it is not a platform owner and does not
-        yet belong to any active hospital workspace.
-      </p>
-      <div className="flex gap-3">
-        <Button asChild variant="outline">
-          <Link href="/logout">Switch Account</Link>
-        </Button>
-      </div>
-    </main>
-  );
+  redirect("/onboarding/create-facility");
 }

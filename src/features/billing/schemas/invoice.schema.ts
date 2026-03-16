@@ -6,7 +6,6 @@ export const createInvoiceSchema = z.object({
   appointment_id: z.string().uuid().optional().or(z.literal("")),
   encounter_id: z.string().uuid().optional().or(z.literal("")),
   notes: z.string().optional(),
-  items_text: z.string().min(1, "At least one invoice item is required"),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;

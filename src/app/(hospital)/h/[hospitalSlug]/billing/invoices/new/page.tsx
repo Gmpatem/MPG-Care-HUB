@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createInvoice } from "@/features/billing/actions/create-invoice";
+import { CreateInvoiceForm } from "@/features/billing/components/create-invoice-form";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { FormMessage } from "@/components/forms/form-message";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,7 @@ export default async function NewInvoicePage({ params }: PageProps) {
         <p className="text-muted-foreground">{hospital.name}</p>
       </div>
 
-      <form action={createInvoice} className="max-w-4xl space-y-6 rounded-xl border p-6">
+      <CreateInvoiceForm action={createInvoice}>
         <input type="hidden" name="hospital_id" value={hospital.id} />
 
         <FormMessage
@@ -169,22 +170,6 @@ export default async function NewInvoicePage({ params }: PageProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Invoice Items</label>
-          <Textarea
-            name="items_text"
-            rows={8}
-            placeholder={"Consultation|1|5000`r`nRegistration Fee|1|1000"}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Use one line per item in this format: description|quantity|unit_price
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Example: Consultation|1|5000
-          </p>
-        </div>
-
-        <div className="space-y-2">
           <label className="text-sm font-medium">Notes</label>
           <Textarea name="notes" placeholder="Optional invoice notes" />
         </div>
@@ -197,7 +182,10 @@ export default async function NewInvoicePage({ params }: PageProps) {
             <Link href={`/h/${hospital.slug}/billing/invoices`}>Cancel</Link>
           </Button>
         </div>
-      </form>
+      </CreateInvoiceForm>
     </main>
   );
 }
+
+
+

@@ -9,6 +9,8 @@ export const createEncounterSchema = z.object({
   assessment_notes: z.string().optional(),
   plan_notes: z.string().optional(),
   diagnosis_text: z.string().optional(),
+  final_notes: z.string().optional(),
+  requires_lab: z.string().optional(),
   temperature: z.string().optional(),
   blood_pressure: z.string().optional(),
   pulse_rate: z.string().optional(),

@@ -9,6 +9,16 @@ type PageProps = {
   }>;
 };
 
+function stageLabel(stage: string | null) {
+  if (!stage) return "initial review";
+  return stage.replaceAll("_", " ");
+}
+
+function dispositionLabel(disposition: string | null) {
+  if (!disposition) return "—";
+  return disposition.replaceAll("_", " ");
+}
+
 export default async function EncountersPage({ params }: PageProps) {
   const { hospitalSlug } = await params;
   const supabase = await createClient();
@@ -33,6 +43,9 @@ export default async function EncountersPage({ params }: PageProps) {
       id,
       encounter_datetime,
       status,
+      stage,
+      disposition_type,
+      requires_lab,
       chief_complaint,
       diagnosis_text,
       created_at,
@@ -65,12 +78,13 @@ export default async function EncountersPage({ params }: PageProps) {
       </div>
 
       <div className="rounded-xl border">
-        <div className="grid grid-cols-6 gap-4 border-b px-4 py-3 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-7 gap-4 border-b px-4 py-3 text-sm font-medium text-muted-foreground">
           <div>Patient</div>
           <div>Date</div>
           <div>Status</div>
+          <div>Stage</div>
           <div>Chief Complaint</div>
-          <div>Diagnosis</div>
+          <div>Disposition</div>
           <div>Open</div>
         </div>
 
@@ -83,7 +97,7 @@ export default async function EncountersPage({ params }: PageProps) {
             return (
               <div
                 key={encounter.id}
-                className="grid grid-cols-6 gap-4 border-b px-4 py-3 text-sm last:border-b-0"
+                className="grid grid-cols-7 gap-4 border-b px-4 py-3 text-sm last:border-b-0"
               >
                 <div className="font-medium">
                   {patient
@@ -92,8 +106,12 @@ export default async function EncountersPage({ params }: PageProps) {
                 </div>
                 <div>{new Date(encounter.encounter_datetime).toLocaleString()}</div>
                 <div className="capitalize">{encounter.status}</div>
+                <div className="capitalize">
+                  {stageLabel(encounter.stage)}
+                  {encounter.requires_lab ? " · lab" : ""}
+                </div>
                 <div>{encounter.chief_complaint ?? "-"}</div>
-                <div>{encounter.diagnosis_text ?? "-"}</div>
+                <div className="capitalize">{dispositionLabel(encounter.disposition_type)}</div>
                 <div>
                   <Link
                     href={`/h/${hospital.slug}/encounters/${encounter.id}`}

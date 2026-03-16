@@ -13,51 +13,6 @@ type ParsedInvoiceItem = {
   item_type: "other";
 };
 
-function parseInvoiceItems(itemsText: string): ParsedInvoiceItem[] {
-  const lines = itemsText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    throw new Error("At least one invoice item is required");
-  }
-
-  return lines.map((line, index) => {
-    const parts = line.split("|").map((part) => part.trim());
-
-    if (parts.length !== 3) {
-      throw new Error(
-        `Invoice item line ${index + 1} is invalid. Use format: description|quantity|unit_price`
-      );
-    }
-
-    const [description, quantityRaw, unitPriceRaw] = parts;
-    const quantity = Number(quantityRaw);
-    const unit_price = Number(unitPriceRaw);
-
-    if (!description) {
-      throw new Error(`Invoice item line ${index + 1} description is required`);
-    }
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      throw new Error(`Invoice item line ${index + 1} has invalid quantity`);
-    }
-
-    if (!Number.isFinite(unit_price) || unit_price < 0) {
-      throw new Error(`Invoice item line ${index + 1} has invalid unit price`);
-    }
-
-    return {
-      description,
-      quantity,
-      unit_price,
-      line_total: quantity * unit_price,
-      item_type: "other",
-    };
-  });
-}
-
 function formatInvoiceNumber(sequence: number): string {
   return `INV-${String(sequence).padStart(6, "0")}`;
 }
@@ -86,7 +41,6 @@ export async function createInvoice(formData: FormData) {
     appointment_id: String(formData.get("appointment_id") ?? ""),
     encounter_id: String(formData.get("encounter_id") ?? ""),
     notes: String(formData.get("notes") ?? ""),
-    items_text: String(formData.get("items_text") ?? ""),
   };
 
   const parsed = createInvoiceSchema.safeParse(values);
@@ -95,7 +49,34 @@ export async function createInvoice(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid invoice data");
   }
 
-  const items = parseInvoiceItems(parsed.data.items_text);
+  const descriptions = formData.getAll("item_description").map(String);
+  const quantities = formData.getAll("item_quantity").map((value) => Number(value));
+  const unitPrices = formData.getAll("item_unit_price").map((value) => Number(value));
+
+  const items: ParsedInvoiceItem[] = descriptions
+    .map((description, index) => {
+      const quantity = quantities[index] || 0;
+      const unit_price = unitPrices[index] || 0;
+
+      return {
+        description: description.trim(),
+        quantity,
+        unit_price,
+        line_total: quantity * unit_price,
+        item_type: "other" as const,
+      };
+    })
+    .filter(
+      (item) =>
+        item.description.length > 0 &&
+        item.quantity > 0 &&
+        item.unit_price >= 0
+    );
+
+  if (items.length === 0) {
+    throw new Error("At least one invoice item is required.");
+  }
+
   const subtotal = items.reduce((sum, item) => sum + item.line_total, 0);
   const total = subtotal;
 
@@ -160,7 +141,8 @@ export async function createInvoice(formData: FormData) {
     throw new Error(latestInvoiceError.message);
   }
 
-  const nextSequence = extractInvoiceSequence(latestInvoice?.invoice_number ?? null) + 1;
+  const nextSequence =
+    extractInvoiceSequence(latestInvoice?.invoice_number ?? null) + 1;
   const invoiceNumber = formatInvoiceNumber(nextSequence);
 
   const { data: invoice, error: invoiceError } = await supabase
@@ -180,7 +162,7 @@ export async function createInvoice(formData: FormData) {
       balance_due: total,
       issued_at: new Date().toISOString(),
       notes: parsed.data.notes || null,
-      created_by: user.id,
+      created_by_user_id: user.id,
     })
     .select("id")
     .single();
@@ -190,7 +172,7 @@ export async function createInvoice(formData: FormData) {
   }
 
   const invoiceItemsPayload = items.map((item) => ({
-    hospital_id: parsed.data.hospital_id,
+    hospital_id: hospital.id,
     invoice_id: invoice.id,
     item_type: item.item_type,
     description: item.description,
@@ -212,3 +194,4 @@ export async function createInvoice(formData: FormData) {
 
   redirect(`/h/${hospital.slug}/billing/invoices/${invoice.id}`);
 }
+

@@ -7,7 +7,7 @@ export default function LoginPage() {
       fallback={
         <main className="flex min-h-screen items-center justify-center px-6">
           <div className="w-full max-w-md rounded-xl border p-6 text-sm text-muted-foreground">
-            Loading login...
+            Loading authentication...
           </div>
         </main>
       }
