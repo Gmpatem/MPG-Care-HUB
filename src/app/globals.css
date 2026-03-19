@@ -7,8 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-jetbrains-mono);
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -221,3 +221,6 @@ textarea:focus,
 select:focus {
   box-shadow: 0 0 0 3px rgba(17, 150, 176, 0.12);
 }
+
+
+

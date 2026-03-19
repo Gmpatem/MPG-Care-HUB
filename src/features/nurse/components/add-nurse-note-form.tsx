@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/feedback/inline-feedback";
+import { emitAppToast } from "@/lib/ui/app-toast";
 import {
   addNurseNote,
   type AddNurseNoteState,
@@ -20,12 +22,28 @@ export function AddNurseNoteForm({
   const action = addNurseNote.bind(null, hospitalSlug, admissionId);
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const toastFiredRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (state.success) {
       formRef.current?.reset();
     }
   }, [state.success]);
+
+  useEffect(() => {
+    if (!state.message) return;
+
+    const fingerprint = `${state.success ? "success" : "error"}:${state.message}`;
+    if (toastFiredRef.current === fingerprint) return;
+
+    toastFiredRef.current = fingerprint;
+
+    emitAppToast({
+      title: state.success ? "Nurse note saved" : "Nurse note failed",
+      description: state.message,
+      tone: state.success ? "success" : "error",
+    });
+  }, [state.success, state.message]);
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4 rounded-xl border p-4">
@@ -64,4 +82,3 @@ export function AddNurseNoteForm({
     </form>
   );
 }
-

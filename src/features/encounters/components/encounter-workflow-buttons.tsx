@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { emitAppToast } from "@/lib/ui/app-toast";
 import type { EncounterWorkflowActionState } from "@/features/encounters/actions/update-encounter-workflow";
 
 type WorkflowAction = (
@@ -25,6 +26,23 @@ function WorkflowActionButton({
   confirmMessage?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const toastFiredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!state.message) return;
+
+    const fingerprint = `${state.success ? "success" : "error"}:${state.message}`;
+    if (toastFiredRef.current === fingerprint) return;
+
+    toastFiredRef.current = fingerprint;
+
+    emitAppToast({
+      title: state.success ? "Encounter updated" : "Encounter update failed",
+      description: state.message,
+      tone: state.success ? "success" : "error",
+    });
+  }, [state.success, state.message]);
+
   const isSuccess = !!state.success;
   const isError = !!state.message && !state.success;
 

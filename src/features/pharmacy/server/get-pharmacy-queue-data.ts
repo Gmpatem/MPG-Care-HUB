@@ -6,7 +6,7 @@ type HospitalRow = {
   name: string;
 };
 
-type PrescriptionRow = {
+type PrescriptionLiteRow = {
   id: string;
   patient_id: string;
   encounter_id: string | null;
@@ -14,17 +14,33 @@ type PrescriptionRow = {
   status: string;
   notes: string | null;
   prescribed_at: string;
-  patient: any;
-  prescribed_by_staff: any;
-  prescription_items:
-    | Array<{
-        id: string;
-        status: string;
-        medication_id: string | null;
-        medication_name: string;
-        quantity_prescribed: number | null;
-      }>
-    | null;
+  patient: {
+    id: string;
+    patient_number: string | null;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+  } | {
+    id: string;
+    patient_number: string | null;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+  }[] | null;
+  prescribed_by_staff: {
+    id: string;
+    full_name: string;
+  } | {
+    id: string;
+    full_name: string;
+  }[] | null;
+};
+
+type PrescriptionItemLiteRow = {
+  id: string;
+  prescription_id: string;
+  status: string;
+  medication_id: string | null;
 };
 
 type BatchStockRow = {
@@ -34,6 +50,7 @@ type BatchStockRow = {
 
 export async function getPharmacyQueueData(hospitalSlug: string) {
   const supabase = await createClient();
+  const startedAt = Date.now();
 
   const { data: hospital, error: hospitalError } = await supabase
     .from("hospitals")
@@ -59,20 +76,11 @@ export async function getPharmacyQueueData(hospitalSlug: string) {
         patient_number,
         first_name,
         middle_name,
-        last_name,
-        sex,
-        phone
+        last_name
       ),
       prescribed_by_staff:staff (
         id,
         full_name
-      ),
-      prescription_items (
-        id,
-        status,
-        medication_id,
-        medication_name,
-        quantity_prescribed
       )
     `)
     .eq("hospital_id", hospital.id)
@@ -80,15 +88,27 @@ export async function getPharmacyQueueData(hospitalSlug: string) {
 
   if (prescriptionsError) throw new Error(prescriptionsError.message);
 
-  const rows = (prescriptions ?? []) as PrescriptionRow[];
+  const prescriptionRows = (prescriptions ?? []) as PrescriptionLiteRow[];
+  const prescriptionIds = prescriptionRows.map((row) => row.id);
+
+  let itemRows: PrescriptionItemLiteRow[] = [];
+
+  if (prescriptionIds.length > 0) {
+    const { data, error } = await supabase
+      .from("prescription_items")
+      .select("id, prescription_id, status, medication_id")
+      .eq("hospital_id", hospital.id)
+      .in("prescription_id", prescriptionIds);
+
+    if (error) throw new Error(error.message);
+    itemRows = (data ?? []) as PrescriptionItemLiteRow[];
+  }
 
   const medicationIds = Array.from(
     new Set(
-      rows.flatMap((row) =>
-        (row.prescription_items ?? [])
-          .map((item) => item.medication_id)
-          .filter((value): value is string => Boolean(value))
-      )
+      itemRows
+        .map((item) => item.medication_id)
+        .filter((value): value is string => Boolean(value))
     )
   );
 
@@ -109,15 +129,26 @@ export async function getPharmacyQueueData(hospitalSlug: string) {
   const stockByMedication = new Map<string, number>();
   for (const row of batchRows) {
     const current = stockByMedication.get(row.medication_id) ?? 0;
-    stockByMedication.set(row.medication_id, current + Number(row.quantity_available ?? 0));
+    stockByMedication.set(
+      row.medication_id,
+      current + Number(row.quantity_available ?? 0)
+    );
   }
 
-  const normalized = rows.map((row) => {
+  const itemsByPrescription = new Map<string, PrescriptionItemLiteRow[]>();
+  for (const item of itemRows) {
+    const current = itemsByPrescription.get(item.prescription_id) ?? [];
+    current.push(item);
+    itemsByPrescription.set(item.prescription_id, current);
+  }
+
+  const normalized = prescriptionRows.map((row) => {
     const patient = Array.isArray(row.patient) ? row.patient[0] ?? null : row.patient ?? null;
     const prescribedByStaff = Array.isArray(row.prescribed_by_staff)
       ? row.prescribed_by_staff[0] ?? null
       : row.prescribed_by_staff ?? null;
-    const items = Array.isArray(row.prescription_items) ? row.prescription_items : [];
+
+    const items = itemsByPrescription.get(row.id) ?? [];
 
     const dispensedCount = items.filter((item) => item.status === "dispensed").length;
     const partialCount = items.filter((item) => item.status === "partially_dispensed").length;
@@ -133,7 +164,8 @@ export async function getPharmacyQueueData(hospitalSlug: string) {
       return (stockByMedication.get(item.medication_id) ?? 0) <= 0;
     }).length;
 
-    const completionRatio = items.length > 0 ? Math.round((dispensedCount / items.length) * 100) : 0;
+    const completionRatio =
+      items.length > 0 ? Math.round((dispensedCount / items.length) * 100) : 0;
 
     let workflowBucket: "incoming" | "partial" | "completed" = "incoming";
     if (row.status === "dispensed" || (items.length > 0 && dispensedCount === items.length)) {
@@ -155,9 +187,13 @@ export async function getPharmacyQueueData(hospitalSlug: string) {
       no_stock_count: noStockCount,
       completion_ratio: completionRatio,
       workflow_bucket: workflowBucket,
-      source_label: prescribedByStaff?.full_name ? "doctor_prescribed" : "prescription_received",
+      source_label: prescribedByStaff?.full_name
+        ? "doctor_prescribed"
+        : "prescription_received",
     };
   });
+
+  console.log("[perf] getPharmacyQueueData", Date.now() - startedAt, "ms");
 
   return {
     hospital,

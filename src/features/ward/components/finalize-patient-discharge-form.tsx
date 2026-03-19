@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/feedback/inline-feedback";
+import { emitAppToast } from "@/lib/ui/app-toast";
 import {
   finalizePatientDischarge,
   type FinalizePatientDischargeState,
@@ -22,6 +24,22 @@ export function FinalizePatientDischargeForm({
   const action = finalizePatientDischarge.bind(null, hospitalSlug, admissionId);
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const toastFiredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!state.message) return;
+
+    const fingerprint = `${state.success ? "success" : "error"}:${state.message}`;
+    if (toastFiredRef.current === fingerprint) return;
+
+    toastFiredRef.current = fingerprint;
+
+    emitAppToast({
+      title: state.success ? "Discharge finalized" : "Discharge failed",
+      description: state.message,
+      tone: state.success ? "success" : "error",
+    });
+  }, [state.success, state.message]);
 
   function handleConfirmSubmit() {
     if (disabled || pending) return;
@@ -60,4 +78,3 @@ export function FinalizePatientDischargeForm({
     </form>
   );
 }
-

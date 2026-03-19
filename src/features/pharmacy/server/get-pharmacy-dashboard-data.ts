@@ -6,66 +6,47 @@ type HospitalRow = {
   name: string;
 };
 
-type PrescriptionRow = {
-  id: string;
-  patient_id: string;
-  encounter_id: string | null;
-  status: string;
-  prescribed_at: string;
-  notes: string | null;
-  patient: {
-    id: string;
-    patient_number: string | null;
-    first_name: string;
-    middle_name: string | null;
-    last_name: string;
-  } | {
-    id: string;
-    patient_number: string | null;
-    first_name: string;
-    middle_name: string | null;
-    last_name: string;
-  }[] | null;
-};
+type PatientLite =
+  | {
+      id: string;
+      patient_number: string | null;
+      first_name: string;
+      middle_name: string | null;
+      last_name: string;
+    }
+  | {
+      id: string;
+      patient_number: string | null;
+      first_name: string;
+      middle_name: string | null;
+      last_name: string;
+    }[]
+  | null;
 
-type PrescriptionItemRow = {
+type PrescriptionItemLiteRow = {
   id: string;
   prescription_id: string;
+  status: string;
   medication_id: string | null;
-  medication_name: string;
-  quantity_prescribed: number | null;
-  status: string;
 };
 
-type BatchRow = {
-  id: string;
+type BatchStockRow = {
   medication_id: string;
-  quantity_available: number;
+  quantity_available: number | null;
 };
 
-type DispensationRow = {
-  id: string;
-  prescription_id: string | null;
-  dispensed_at: string;
-  status: string;
-};
+function fullName(patient: PatientLite) {
+  const value = Array.isArray(patient) ? patient[0] ?? null : patient;
+  if (!value) return "Unknown patient";
 
-function takeOne<T>(value: T | T[] | null): T | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function fullName(patient: {
-  first_name: string;
-  middle_name: string | null;
-  last_name: string;
-} | null) {
-  if (!patient) return "Unknown patient";
-  return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
+  return [value.first_name, value.middle_name, value.last_name]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export async function getPharmacyDashboardData(hospitalSlug: string) {
   const supabase = await createClient();
+  const startedAt = Date.now();
 
   const { data: hospital, error: hospitalError } = await supabase
     .from("hospitals")
@@ -76,13 +57,14 @@ export async function getPharmacyDashboardData(hospitalSlug: string) {
   if (hospitalError) throw new Error(hospitalError.message);
   if (!hospital) throw new Error("Hospital not found.");
 
-  const [prescriptionsRes, itemsRes, batchesRes, dispensationsRes] = await Promise.all([
+  const hospitalId = hospital.id;
+
+  const [prescriptionsResult, dispensationsResult] = await Promise.all([
     supabase
       .from("prescriptions")
       .select(`
         id,
         patient_id,
-        encounter_id,
         status,
         prescribed_at,
         notes,
@@ -94,95 +76,149 @@ export async function getPharmacyDashboardData(hospitalSlug: string) {
           last_name
         )
       `)
-      .eq("hospital_id", hospital.id)
+      .eq("hospital_id", hospitalId)
       .order("prescribed_at", { ascending: false })
-      .returns<PrescriptionRow[]>(),
-
-    supabase
-      .from("prescription_items")
-      .select("id, prescription_id, medication_id, medication_name, quantity_prescribed, status")
-      .eq("hospital_id", hospital.id)
-      .returns<PrescriptionItemRow[]>(),
-
-    supabase
-      .from("pharmacy_stock_batches")
-      .select("id, medication_id, quantity_available")
-      .eq("hospital_id", hospital.id)
-      .returns<BatchRow[]>(),
+      .limit(16),
 
     supabase
       .from("dispensations")
-      .select("id, prescription_id, dispensed_at, status")
-      .eq("hospital_id", hospital.id)
+      .select("id, status, dispensed_at")
+      .eq("hospital_id", hospitalId)
       .order("dispensed_at", { ascending: false })
-      .returns<DispensationRow[]>(),
+      .limit(100),
   ]);
 
-  if (prescriptionsRes.error) throw new Error(prescriptionsRes.error.message);
-  if (itemsRes.error) throw new Error(itemsRes.error.message);
-  if (batchesRes.error) throw new Error(batchesRes.error.message);
-  if (dispensationsRes.error) throw new Error(dispensationsRes.error.message);
+  if (prescriptionsResult.error) throw new Error(prescriptionsResult.error.message);
+  if (dispensationsResult.error) throw new Error(dispensationsResult.error.message);
 
-  const itemsByPrescriptionId = new Map<string, PrescriptionItemRow[]>();
-  for (const item of itemsRes.data ?? []) {
-    const current = itemsByPrescriptionId.get(item.prescription_id) ?? [];
-    current.push(item);
-    itemsByPrescriptionId.set(item.prescription_id, current);
+  const prescriptions = prescriptionsResult.data ?? [];
+  const dispensations = dispensationsResult.data ?? [];
+
+  const prescriptionIds = prescriptions.map((row) => row.id);
+
+  let itemRows: PrescriptionItemLiteRow[] = [];
+
+  if (prescriptionIds.length > 0) {
+    const { data, error } = await supabase
+      .from("prescription_items")
+      .select("id, prescription_id, status, medication_id")
+      .eq("hospital_id", hospitalId)
+      .in("prescription_id", prescriptionIds);
+
+    if (error) throw new Error(error.message);
+    itemRows = (data ?? []) as PrescriptionItemLiteRow[];
   }
 
-  const stockByMedicationId = new Map<string, number>();
-  for (const batch of batchesRes.data ?? []) {
-    const current = stockByMedicationId.get(batch.medication_id) ?? 0;
-    stockByMedicationId.set(batch.medication_id, current + Number(batch.quantity_available ?? 0));
-  }
-
-  const completedTodayStart = new Date();
-  completedTodayStart.setHours(0, 0, 0, 0);
-
-  const completedToday = (dispensationsRes.data ?? []).filter(
-    (row) =>
-      row.status === "completed" &&
-      new Date(row.dispensed_at).getTime() >= completedTodayStart.getTime()
+  const medicationIds = Array.from(
+    new Set(
+      itemRows
+        .map((item) => item.medication_id)
+        .filter((value): value is string => Boolean(value))
+    )
   );
 
-  const rows = (prescriptionsRes.data ?? []).map((row) => {
-    const patient = takeOne(row.patient);
-    const items = itemsByPrescriptionId.get(row.id) ?? [];
+  let batchRows: BatchStockRow[] = [];
 
-    const stockReady = items.length > 0 && items.every((item) => {
+  if (medicationIds.length > 0) {
+    const { data, error } = await supabase
+      .from("pharmacy_stock_batches")
+      .select("medication_id, quantity_available")
+      .eq("hospital_id", hospitalId)
+      .in("medication_id", medicationIds)
+      .gt("quantity_available", 0);
+
+    if (error) throw new Error(error.message);
+    batchRows = (data ?? []) as BatchStockRow[];
+  }
+
+  const stockByMedication = new Map<string, number>();
+  for (const row of batchRows) {
+    const current = stockByMedication.get(row.medication_id) ?? 0;
+    stockByMedication.set(
+      row.medication_id,
+      current + Number(row.quantity_available ?? 0)
+    );
+  }
+
+  const itemsByPrescription = new Map<string, PrescriptionItemLiteRow[]>();
+  for (const item of itemRows) {
+    const current = itemsByPrescription.get(item.prescription_id) ?? [];
+    current.push(item);
+    itemsByPrescription.set(item.prescription_id, current);
+  }
+
+  const normalized = prescriptions.map((row) => {
+    const patient = Array.isArray(row.patient) ? row.patient[0] ?? null : row.patient ?? null;
+    const items = itemsByPrescription.get(row.id) ?? [];
+
+    const itemCount = items.length;
+    const dispensedCount = items.filter((item) => item.status === "dispensed").length;
+    const partialCount = items.filter((item) => item.status === "partially_dispensed").length;
+    const pendingCount = items.filter((item) => item.status === "pending").length;
+
+    const stockReadyCount = items.filter((item) => {
       if (!item.medication_id) return false;
-      const available = stockByMedicationId.get(item.medication_id) ?? 0;
-      const needed = Number(item.quantity_prescribed ?? 0);
-      return available > 0 && available >= needed;
-    });
+      return (stockByMedication.get(item.medication_id) ?? 0) > 0;
+    }).length;
 
-    const stockBlocked = items.some((item) => {
+    const noStockCount = items.filter((item) => {
       if (!item.medication_id) return true;
-      const available = stockByMedicationId.get(item.medication_id) ?? 0;
-      const needed = Number(item.quantity_prescribed ?? 0);
-      return available <= 0 || available < needed;
-    });
+      return (stockByMedication.get(item.medication_id) ?? 0) <= 0;
+    }).length;
+
+    const completionRatio =
+      itemCount > 0 ? Math.round((dispensedCount / itemCount) * 100) : 0;
 
     return {
-      id: row.id,
-      status: row.status,
-      prescribed_at: row.prescribed_at,
+      ...row,
+      patient,
       patient_full_name: fullName(patient),
-      patient_number: patient?.patient_number ?? null,
-      item_count: items.length,
-      stock_ready: stockReady,
-      stock_blocked: stockBlocked,
+      patient_number: patient?.patient_number ?? "No patient number",
+      item_count: itemCount,
+      dispensed_count: dispensedCount,
+      partial_count: partialCount,
+      pending_count: pendingCount,
+      stock_ready_count: stockReadyCount,
+      no_stock_count: noStockCount,
+      stock_ready: itemCount > 0 && noStockCount === 0,
+      stock_blocked: noStockCount > 0,
+      completion_ratio: completionRatio,
     };
   });
+
+  const readyToDispense = normalized.filter(
+    (row) => row.status === "active" || row.status === "pending"
+  ).length;
+
+  const stockBlocked = normalized.filter((row) => row.stock_blocked).length;
+
+  const completedTodayCount = dispensations.filter((row) => {
+    if (!row.dispensed_at) return false;
+
+    const today = new Date();
+    const value = new Date(row.dispensed_at);
+
+    return (
+      value.getFullYear() === today.getFullYear() &&
+      value.getMonth() === today.getMonth() &&
+      value.getDate() === today.getDate()
+    );
+  }).length;
+
+  const rows = normalized.slice(0, 8);
+
+  console.log("[perf] getPharmacyDashboardData", Date.now() - startedAt, "ms");
 
   return {
     hospital,
     stats: {
-      total_prescriptions: rows.length,
-      ready_to_dispense: rows.filter((row) => row.stock_ready).length,
-      stock_blocked: rows.filter((row) => row.stock_blocked).length,
-      completed_today: completedToday.length,
+      total_prescriptions: normalized.length,
+      ready_to_dispense: readyToDispense,
+      stock_blocked: stockBlocked,
+      completed_today: completedTodayCount,
     },
     rows,
+    queue: rows,
+    recentDispensations: dispensations.slice(0, 8),
   };
 }
