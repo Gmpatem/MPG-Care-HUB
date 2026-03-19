@@ -6,6 +6,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 
+import { StatusBadge } from "@/components/layout/status-badge";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
@@ -39,10 +40,10 @@ function formatDuration(admittedAt: string | null) {
 }
 
 function vitalsTone(state: string) {
-  if (state === "overdue") return "bg-rose-100 text-rose-700";
-  if (state === "missing") return "bg-amber-100 text-amber-700";
-  if (state === "due") return "bg-blue-100 text-blue-700";
-  return "bg-emerald-100 text-emerald-700";
+  if (state === "overdue") return "danger" as const;
+  if (state === "missing") return "warning" as const;
+  if (state === "due") return "info" as const;
+  return "success" as const;
 }
 
 function vitalsLabel(state: string) {
@@ -62,77 +63,85 @@ function PatientCard({
   const latestVitals = admission.latest_vitals;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium">{fullName(admission.patient)}</p>
+    <div className="surface-panel p-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-semibold text-foreground">{fullName(admission.patient)}</p>
 
-          {admission.discharge_requested ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-              discharge requested
-            </span>
-          ) : null}
+            {admission.discharge_requested ? (
+              <StatusBadge
+                label="discharge requested"
+                tone="warning"
+                className="px-2.5 py-1 font-medium"
+              />
+            ) : null}
 
-          <span className={`rounded-full px-2 py-0.5 text-xs ${vitalsTone(admission.vitals_state)}`}>
-            {vitalsLabel(admission.vitals_state)}
-          </span>
+            <StatusBadge
+              label={vitalsLabel(admission.vitals_state)}
+              tone={vitalsTone(admission.vitals_state)}
+              className="px-2.5 py-1 font-medium"
+            />
 
-          {admission.is_new_admission ? (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-              new admission
-            </span>
-          ) : null}
+            {admission.is_new_admission ? (
+              <StatusBadge
+                label="new admission"
+                tone="info"
+                className="px-2.5 py-1 font-medium"
+              />
+            ) : null}
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
+          </p>
+
+          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+            <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
+            <p>Stay: {formatDuration(admission.admitted_at)}</p>
+            <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
+            <p>Phone: {admission.patient?.phone ?? "—"}</p>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Reason: {admission.admission_reason ?? "—"}
+          </p>
+
+          <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+            {latestVitals ? (
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <p>Last vitals: {formatDateTime(latestVitals.recorded_at)}</p>
+                <p>
+                  BP: {latestVitals.blood_pressure_systolic ?? "—"} / {latestVitals.blood_pressure_diastolic ?? "—"}
+                </p>
+                <p>Pulse: {latestVitals.pulse_bpm ?? "—"} bpm</p>
+                <p>SpO2: {latestVitals.spo2 ?? "—"} %</p>
+              </div>
+            ) : (
+              <p>No vitals recorded yet for this admission.</p>
+            )}
+          </div>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
-        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
+              Open Chart
+            </Link>
+          </Button>
 
-        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-          <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
-          <p>Stay: {formatDuration(admission.admitted_at)}</p>
-          <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
-          <p>Phone: {admission.patient?.phone ?? "—"}</p>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/h/${hospitalSlug}/ward`}>
+              Ward Workspace
+            </Link>
+          </Button>
+
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/h/${hospitalSlug}/ward/discharges`}>
+              Discharge Queue
+            </Link>
+          </Button>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          Reason: {admission.admission_reason ?? "—"}
-        </p>
-
-        <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
-          {latestVitals ? (
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              <p>Last vitals: {formatDateTime(latestVitals.recorded_at)}</p>
-              <p>
-                BP: {latestVitals.blood_pressure_systolic ?? "—"} / {latestVitals.blood_pressure_diastolic ?? "—"}
-              </p>
-              <p>Pulse: {latestVitals.pulse_bpm ?? "—"} bpm</p>
-              <p>SpO2: {latestVitals.spo2 ?? "—"} %</p>
-            </div>
-          ) : (
-            <p>No vitals recorded yet for this admission.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>
-            Open Chart
-          </Link>
-        </Button>
-
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/h/${hospitalSlug}/ward`}>
-            Ward Workspace
-          </Link>
-        </Button>
-
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/h/${hospitalSlug}/ward/discharges`}>
-            Discharge Queue
-          </Link>
-        </Button>
       </div>
     </div>
   );
@@ -167,7 +176,7 @@ export function NurseDashboardPage({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Nursing Station"
-        title={hospitalName}
+        title="Nursing Station"
         description="Monitor admitted patients, catch overdue vitals early, and prepare inpatient cases for safe discharge and continued charting."
         actions={
           <>
@@ -255,7 +264,7 @@ export function NurseDashboardPage({
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Nursing Flow"
               description="Use the same routine for each inpatient shift."
@@ -276,22 +285,35 @@ export function NurseDashboardPage({
 
               <WorkflowStepCard
                 step="Step 3"
-                title="Prepare for discharge safely"
-                description="Complete required nursing actions before the patient moves into final discharge handling."
+                title="Prepare discharge safely"
+                description="Use the discharge queue and ward chart to complete nursing clearance and avoid ward bottlenecks."
               />
             </div>
           </section>
 
-          <section className="rounded-2xl border p-4 sm:p-5 text-sm text-muted-foreground">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
-              title="Monitoring Summary"
-              description="Live nursing counts"
+              title="Nursing Snapshot"
+              description="Live shift visibility"
             />
 
             <div className="mt-4 grid gap-3">
-              <div className="rounded-xl border bg-muted/30 p-3">Vitals overdue: {stats.overdue_vitals}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Missing first vitals: {stats.missing_vitals}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Vitals due soon: {stats.due_vitals}</div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Total admissions
+                <div className="mt-1 text-lg font-semibold text-foreground">{stats.total_admissions}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Due soon
+                <div className="mt-1 text-lg font-semibold text-foreground">{stats.due_vitals}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Overdue vitals
+                <div className="mt-1 text-lg font-semibold text-foreground">{stats.overdue_vitals}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Missing first vitals
+                <div className="mt-1 text-lg font-semibold text-foreground">{stats.missing_vitals}</div>
+              </div>
             </div>
           </section>
         </div>

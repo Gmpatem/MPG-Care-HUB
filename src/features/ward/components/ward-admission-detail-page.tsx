@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
+import { InfoGrid } from "@/components/layout/info-grid";
+import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
 import { DischargeChecklistPanel } from "@/features/ward/components/discharge-checklist-panel";
 import { OpenAdmissionActivityButton } from "@/features/ward/components/open-admission-activity-button";
 import { BillingSummaryCard } from "@/features/billing/components/billing-summary-card";
@@ -140,36 +143,50 @@ export function WardAdmissionDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_.95fr]">
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <PatientSummaryPanel
+            name={fullName(admission.patient)}
+            patientNumber={admission.patient?.patient_number}
+            subtitle={`Ward ${admission.ward?.name ?? "—"} · Bed ${admission.bed?.bed_number ?? "Unassigned"}`}
+            statusLabel={admission.discharge_requested ? "discharge requested" : "admitted"}
+            statusTone={admission.discharge_requested ? "warning" : "success"}
+            primaryItems={[
+              { label: "Sex", value: admission.patient?.sex },
+              { label: "Phone", value: admission.patient?.phone },
+              { label: "Admitted At", value: formatDateTime(admission.admitted_at) },
+              { label: "Ward Type", value: admission.ward?.ward_type },
+            ]}
+            secondaryItems={[
+              { label: "Doctor", value: admission.admitting_doctor?.full_name ?? "Unknown" },
+              { label: "Specialty", value: admission.admitting_doctor?.specialty },
+              { label: "Ward Code", value: admission.ward?.code },
+              { label: "Bed Status", value: admission.bed?.status },
+            ]}
+          />
+
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
-              title="Admission Summary"
-              description="Core ward placement and patient identity"
+              title="Admission Notes"
+              description="Core admission context before discharge handling."
             />
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">{fullName(admission.patient)}</p>
-                <p className="mt-1">{admission.patient?.patient_number ?? "No patient number"}</p>
-                <p className="mt-1">Sex: {admission.patient?.sex ?? "—"}</p>
-                <p className="mt-1">Phone: {admission.patient?.phone ?? "—"}</p>
+            <div className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Admission Reason
+                </p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  {admission.admission_reason ?? "—"}
+                </p>
               </div>
 
-              <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <p>Admitted at: {formatDateTime(admission.admitted_at)}</p>
-                <p className="mt-1">Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
-                <p className="mt-1">Specialty: {admission.admitting_doctor?.specialty ?? "—"}</p>
-                <p className="mt-1">Ward type: {admission.ward?.ward_type ?? "—"}</p>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Discharge Notes
+                </p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  {admission.discharge_notes ?? "—"}
+                </p>
               </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Admission Reason</p>
-              <p className="mt-1">{admission.admission_reason ?? "—"}</p>
-            </div>
-
-            <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Discharge Notes</p>
-              <p className="mt-1">{admission.discharge_notes ?? "—"}</p>
             </div>
           </section>
 
@@ -190,33 +207,48 @@ export function WardAdmissionDetailPage({
             cleared={billing.cleared}
           />
 
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Chart Snapshot"
+              description="Quick admission context"
+            />
+
+            <div className="mt-4">
+              <InfoGrid
+                items={[
+                  { label: "Discharge Requested At", value: formatDateTime(admission.discharge_requested_at) },
+                  { label: "Required Checklist", value: `${checklist.summary.required_completed}/${checklist.summary.required_total}` },
+                  { label: "Checklist Ready", value: checklist.summary.ready ? "Yes" : "No" },
+                  { label: "Billing Cleared", value: billing.cleared ? "Yes" : "No" },
+                ]}
+              />
+            </div>
+          </section>
+
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Ward Flow"
               description="Safe discharge preparation routine"
             />
 
             <div className="mt-4 space-y-3">
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 1: Review chart context</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confirm the patient, doctor, ward, bed, and admission reason before discharge work begins.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 1"
+                title="Review chart context"
+                description="Confirm the patient, doctor, ward, bed, and admission reason before discharge work begins."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 2: Complete the checklist</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Work through discharge requirements item by item so blockers remain visible.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 2"
+                title="Complete the checklist"
+                description="Work through discharge requirements item by item so blockers remain visible."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 3: Confirm billing clearance</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Use billing status together with checklist readiness before final discharge handling.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 3"
+                title="Confirm billing clearance"
+                description="Use billing status together with checklist readiness before final discharge handling."
+              />
             </div>
           </section>
         </div>

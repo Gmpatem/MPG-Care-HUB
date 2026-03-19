@@ -19,17 +19,16 @@ export function WorkspacePageHeader({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[1.6rem] border border-[#7db8d3] bg-[linear-gradient(135deg,rgba(11,42,74,0.06),rgba(42,179,204,0.06))] p-5 shadow-[0_18px_48px_rgba(13,27,42,0.05)] sm:p-6",
+        "hero-mesh rounded-[1.6rem] p-[1px] shadow-[0_18px_55px_rgba(11,42,74,0.08)]",
         className
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(42,179,204,0.14),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(83,74,183,0.08),transparent_30%)]" />
-      <div className="relative grid gap-5 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
-        <div className="space-y-2">
-          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+      <div className="rounded-[1.52rem] bg-white/92 p-5 dark:bg-[#101c2c]/88 sm:p-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 space-y-2">
+            {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
 
-          <div className="space-y-2">
-            <h1 className="text-[1.95rem] font-semibold tracking-[-0.03em] text-foreground sm:text-[2.2rem]">
+            <h1 className="text-[1.8rem] font-semibold tracking-[-0.03em] text-foreground sm:text-[2.1rem]">
               {title}
             </h1>
 
@@ -39,13 +38,13 @@ export function WorkspacePageHeader({
               </p>
             ) : null}
           </div>
-        </div>
 
-        {actions ? (
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            {actions}
-          </div>
-        ) : null}
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 xl:max-w-[42rem] xl:justify-end">
+              {actions}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

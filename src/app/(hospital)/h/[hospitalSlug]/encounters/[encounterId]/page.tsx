@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { getEncounterLabResults } from "@/features/lab/server/get-encounter-lab-results";
 import { EncounterLabResultsPanel } from "@/features/lab/components/encounter-lab-results-panel";
+import { EncounterWorkflowButtons } from "@/features/encounters/components/encounter-workflow-buttons";
 
 type PageProps = {
   params: Promise<{
@@ -191,59 +192,15 @@ export default async function EncounterDetailPage({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            {!isCompleted && stage === "initial_review" ? (
-              <>
-                <form action={markAwaitingResultsAction}>
-                  <Button type="submit">Move to Awaiting Results</Button>
-                </form>
-
-                <form action={markTreatmentAction}>
-                  <Button type="submit" variant="outline">Mark Treatment Decided</Button>
-                </form>
-
-                <form action={markAdmissionAction}>
-                  <Button type="submit" variant="outline">Request Admission</Button>
-                </form>
-              </>
-            ) : null}
-
-            {!isCompleted && stage === "awaiting_results" ? (
-              <form action={markResultsReviewAction}>
-                <Button type="submit">Mark Results Review</Button>
-              </form>
-            ) : null}
-
-            {!isCompleted && stage === "results_review" ? (
-              <>
-                <form action={markTreatmentAction}>
-                  <Button type="submit">Mark Treatment Decided</Button>
-                </form>
-
-                <form action={markAdmissionAction}>
-                  <Button type="submit" variant="outline">Request Admission</Button>
-                </form>
-              </>
-            ) : null}
-
-            {!isCompleted && stage === "treatment_decided" ? (
-              <form action={finalizeAction}>
-                <Button type="submit">Finalize Encounter</Button>
-              </form>
-            ) : null}
-
-            {!isCompleted && stage === "admission_requested" ? (
-              <form action={finalizeAction}>
-                <Button type="submit">Finalize After Handoff</Button>
-              </form>
-            ) : null}
-
-            {isCompleted ? (
-              <div className="rounded-md border border-slate-300 bg-white/70 px-3 py-2 text-sm">
-                No further stage transition needed.
-              </div>
-            ) : null}
-          </div>
+          <EncounterWorkflowButtons
+            stage={stage}
+            isCompleted={isCompleted}
+            markAwaitingResultsAction={markAwaitingResultsAction}
+            markResultsReviewAction={markResultsReviewAction}
+            markTreatmentAction={markTreatmentAction}
+            markAdmissionAction={markAdmissionAction}
+            finalizeAction={finalizeAction}
+          />
         </div>
       </div>
 

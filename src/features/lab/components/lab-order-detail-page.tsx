@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { ClipboardList, FlaskConical, ListChecks, TriangleAlert } from "lucide-react";
+import { ClipboardCheck, FlaskConical, TestTubeDiagonal, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
-import { LabOrderItemResultForm } from "@/features/lab/components/lab-order-item-result-form";
-import { CompleteLabOrderButton } from "@/features/lab/components/complete-lab-order-button";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
+import { StatusBadge } from "@/components/layout/status-badge";
+import { InfoGrid } from "@/components/layout/info-grid";
+import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
 
 function fullName(patient: any) {
   if (!patient) return "Unknown patient";
@@ -15,8 +17,21 @@ function fullName(patient: any) {
 
 function formatDateTime(value: string | null) {
   if (!value) return "—";
-  const date = new Date(value);
-  return date.toLocaleString();
+  return new Date(value).toLocaleString();
+}
+
+function orderTone(status: string | null) {
+  if (status === "completed") return "success" as const;
+  if (status === "in_progress") return "info" as const;
+  if (status === "cancelled") return "danger" as const;
+  return "warning" as const;
+}
+
+function itemTone(status: string | null) {
+  if (status === "verified") return "success" as const;
+  if (status === "entered") return "info" as const;
+  if (status === "pending") return "warning" as const;
+  return "neutral" as const;
 }
 
 export function LabOrderDetailPage({
@@ -28,21 +43,20 @@ export function LabOrderDetailPage({
   order: any;
   items: any[];
 }) {
-  const enteredCount = items.filter((item) => item.entered_at || item.result_text).length;
-  const completedCount = items.filter((item) => item.status === "completed" || item.status === "verified").length;
-  const pendingCount = items.length - completedCount;
-  const isCompleted = order.status === "completed";
+  const completedItems = items.filter((item) => item.status === "verified" || item.status === "completed").length;
+  const pendingItems = items.filter((item) => item.status === "pending").length;
+  const enteredItems = items.filter((item) => item.status === "entered").length;
 
   return (
     <main className="space-y-6">
       <WorkspacePageHeader
-        eyebrow="Lab Result Entry"
-        title="Lab Order"
-        description="Review the patient, complete result entry item by item, then mark the order complete so the doctor can continue the encounter."
+        eyebrow="Laboratory Order"
+        title={fullName(order?.patient)}
+        description="Review the full investigation request, enter results item by item, verify completed results, and keep doctor follow-up visible."
         actions={
           <>
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/lab/orders`}>Back to Lab Queue</Link>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/lab`}>Back to Lab Queue</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
@@ -53,141 +67,173 @@ export function LabOrderDetailPage({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <WorkspaceStatCard
-          title="Requested Items"
-          value={items.length}
-          description="Total investigations included on this order"
-          icon={<ClipboardList className="h-4 w-4" />}
-        />
-        <WorkspaceStatCard
-          title="Results Entered"
-          value={enteredCount}
-          description="Items with at least partial result data entered"
+          title="Order Status"
+          value={order?.status?.replaceAll("_", " ") ?? "ordered"}
+          description={`Priority: ${order?.priority ?? "routine"}`}
           icon={<FlaskConical className="h-4 w-4" />}
+          valueClassName="text-xl"
         />
         <WorkspaceStatCard
-          title="Completed Items"
-          value={completedCount}
-          description="Items already marked complete or verified"
-          icon={<ListChecks className="h-4 w-4" />}
+          title="Items Total"
+          value={items.length}
+          description="Requested tests on this order"
+          icon={<TestTubeDiagonal className="h-4 w-4" />}
         />
         <WorkspaceStatCard
-          title="Still Pending"
-          value={pendingCount}
-          description="Items still needing laboratory action"
-          icon={<TriangleAlert className="h-4 w-4" />}
+          title="Entered / Verified"
+          value={`${enteredItems + completedItems}/${items.length}`}
+          description="Results already touched by lab staff"
+          icon={<ClipboardCheck className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Pending"
+          value={pendingItems}
+          description="Tests still waiting for result entry"
+          icon={<UserRound className="h-4 w-4" />}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.25fr_.95fr]">
+      <div className="grid gap-6 lg:grid-cols-[1.45fr_.95fr]">
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <PatientSummaryPanel
+            name={fullName(order?.patient)}
+            patientNumber={order?.patient?.patient_number}
+            subtitle={`Lab order received ${formatDateTime(order?.ordered_at)}`}
+            statusLabel={order?.status?.replaceAll("_", " ") ?? "ordered"}
+            statusTone={orderTone(order?.status)}
+            primaryItems={[
+              { label: "Priority", value: order?.priority },
+              { label: "Ordered At", value: formatDateTime(order?.ordered_at) },
+              { label: "Sample Collected", value: formatDateTime(order?.sample_collected_at) },
+              { label: "Completed At", value: formatDateTime(order?.completed_at) },
+            ]}
+            secondaryItems={[
+              { label: "Ordered By", value: order?.ordered_by_staff?.full_name ?? "Unknown" },
+              { label: "Encounter", value: order?.encounter_id },
+              { label: "Appointment", value: order?.appointment_id },
+              { label: "Patient Phone", value: order?.patient?.phone },
+            ]}
+          />
+
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
-              title="Patient and Order Summary"
-              description="Confirm patient identity, ordering doctor, and urgency before entering or verifying results."
+              title="Clinical Notes"
+              description="Doctor-provided context for the requested investigations."
             />
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">Patient</p>
-                <h2 className="mt-1 text-lg font-semibold">{fullName(order.patient)}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {order.patient?.patient_number ?? "No patient number"} · {order.patient?.sex ?? "unknown"} · {order.patient?.phone ?? "No phone"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <p>Status: {order.status ?? "ordered"}</p>
-                <p className="mt-1">Priority: {order.priority ?? "routine"}</p>
-                <p className="mt-1">Ordered at: {formatDateTime(order.ordered_at)}</p>
-                <p className="mt-1">Completed at: {formatDateTime(order.completed_at)}</p>
-                <p className="mt-1">Ordering doctor: {order.ordered_by_staff?.full_name ?? "Unknown"}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border bg-muted/30 p-4">
-              <p className="text-sm font-medium">Clinical Notes</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                {order.clinical_notes || "—"}
-              </p>
+            <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-4 text-sm leading-6 text-foreground">
+              {order?.clinical_notes ?? "—"}
             </div>
           </section>
 
-          <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
-              title="Requested Test Items"
-              description="Enter or update results for each item on this order."
+              title="Lab Result Items"
+              description="Enter and verify results item by item so incomplete work stays visible."
             />
 
-            {items.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                This lab order has no items yet.
-              </div>
-            ) : (
-              items.map((item) => (
-                <LabOrderItemResultForm
-                  key={item.id}
-                  hospitalSlug={hospitalSlug}
-                  labOrderId={order.id}
-                  item={item}
-                />
-              ))
-            )}
+            <div className="mt-4 space-y-4">
+              {items.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-border/70 bg-background p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-foreground">{item.test_name}</p>
+                        <StatusBadge
+                          label={item.status?.replaceAll("_", " ") ?? "pending"}
+                          tone={itemTone(item.status)}
+                          className="px-2.5 py-1 capitalize font-medium"
+                        />
+                      </div>
+
+                      <InfoGrid
+                        items={[
+                          { label: "Unit", value: item.unit },
+                          { label: "Reference Range", value: item.reference_range },
+                          { label: "Entered At", value: formatDateTime(item.entered_at) },
+                          { label: "Verified At", value: formatDateTime(item.verified_at) },
+                        ]}
+                      />
+
+                      <div className="grid gap-3 xl:grid-cols-2">
+                        <div className="rounded-2xl border border-border/70 bg-background/70 p-4 text-sm">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Result Text
+                          </p>
+                          <p className="mt-2 leading-6 text-foreground">
+                            {item.result_text ?? "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/70 bg-background/70 p-4 text-sm">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Notes
+                          </p>
+                          <p className="mt-2 leading-6 text-foreground">
+                            {item.notes ?? "—"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button asChild size="sm">
+                        <Link href={`/h/${hospitalSlug}/lab/orders/${order.id}/items/${item.id}`}>
+                          Enter Result
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
-            <WorkspaceSectionHeader
-              title="Completion"
-              description="Complete the order after all required results are entered."
-            />
-
-            <div className="mt-4">
-              <CompleteLabOrderButton
-                hospitalSlug={hospitalSlug}
-                labOrderId={order.id}
-                disabled={isCompleted}
-              />
-            </div>
-
-            {isCompleted ? (
-              <p className="mt-3 text-sm text-emerald-700">
-                This order has already been marked completed.
-              </p>
-            ) : (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Mark the order complete only after all necessary test results are ready for doctor review.
-              </p>
-            )}
-          </section>
-
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Lab Flow"
               description="Safe result-entry routine"
             />
 
             <div className="mt-4 space-y-3">
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 1: Confirm the patient and request</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Always verify the patient, doctor, and urgency level before entering results.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 1"
+                title="Confirm patient and order context"
+                description="Review the doctor’s notes, order priority, and collection timing before entering results."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 2: Record item by item</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Enter results per requested test so incomplete work remains visible and traceable.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 2"
+                title="Enter results by test"
+                description="Record each requested investigation separately so pending items remain visible."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 3: Return the case to doctor review</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Completing the order moves the case back into the clinical decision workflow.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 3"
+                title="Verify and release"
+                description="Mark completed results clearly so the doctor can continue the patient decision flow."
+              />
+            </div>
+          </section>
+
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Order Snapshot"
+              description="Quick lab context"
+            />
+
+            <div className="mt-4">
+              <InfoGrid
+                items={[
+                  { label: "Pending Items", value: pendingItems },
+                  { label: "Entered Items", value: enteredItems },
+                  { label: "Verified / Completed", value: completedItems },
+                  { label: "Priority", value: order?.priority },
+                ]}
+                columnsClassName="sm:grid-cols-2"
+              />
             </div>
           </section>
         </div>

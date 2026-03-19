@@ -6,10 +6,12 @@ import {
   Receipt,
 } from "lucide-react";
 
+import { StatusBadge } from "@/components/layout/status-badge";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { Button } from "@/components/ui/button";
 
 function fullName(patient: any) {
@@ -23,9 +25,9 @@ function formatDateTime(value: string | null) {
 }
 
 function statusTone(status: string) {
-  if (status === "dispensed") return "bg-emerald-100 text-emerald-700";
-  if (status === "partially_dispensed") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-700";
+  if (status === "dispensed") return "success" as const;
+  if (status === "partially_dispensed") return "warning" as const;
+  return "neutral" as const;
 }
 
 function EmptyState({ hospitalSlug }: { hospitalSlug: string }) {
@@ -54,75 +56,87 @@ function Section({
   hospitalSlug: string;
 }) {
   return (
-    <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
+    <section className="surface-panel p-4 sm:p-5">
       <WorkspaceSectionHeader title={title} description={description} />
 
       {prescriptions.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-2xl border border-dashed border-border/80 bg-background/50 p-4 text-sm text-muted-foreground">
           No prescriptions in this section.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="mt-4 space-y-4">
           {prescriptions.map((prescription) => (
             <div
               key={prescription.id}
-              className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
+              className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
             >
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{fullName(prescription.patient)}</p>
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-semibold text-foreground">{fullName(prescription.patient)}</p>
 
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${statusTone(prescription.status)}`}>
-                    {prescription.status}
-                  </span>
+                    <StatusBadge
+                      label={prescription.status.replaceAll("_", " ")}
+                      tone={statusTone(prescription.status)}
+                      className="px-2.5 py-1 capitalize font-medium"
+                    />
 
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                    {prescription.prescribed_by_staff?.full_name ? "from doctor" : "received"}
-                  </span>
+                    <StatusBadge
+                      label={prescription.prescribed_by_staff?.full_name ? "from doctor" : "received"}
+                      tone="info"
+                      className="px-2.5 py-1 font-medium"
+                    />
 
-                  {prescription.no_stock_count > 0 ? (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">
-                      {prescription.no_stock_count} no stock
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                      stock ready
-                    </span>
-                  )}
+                    {prescription.no_stock_count > 0 ? (
+                      <StatusBadge
+                        label={`${prescription.no_stock_count} no stock`}
+                        tone="danger"
+                        className="px-2.5 py-1 font-medium"
+                      />
+                    ) : (
+                      <StatusBadge
+                        label="stock ready"
+                        tone="success"
+                        className="px-2.5 py-1 font-medium"
+                      />
+                    )}
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    {prescription.patient?.patient_number ?? "No patient number"} · Received {formatDateTime(prescription.prescribed_at)}
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    Prescriber: {prescription.prescribed_by_staff?.full_name ?? "Unknown"}
+                  </p>
+
+                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+                    <p>Total items: {prescription.item_count}</p>
+                    <p>Pending: {prescription.pending_count}</p>
+                    <p>Partial: {prescription.partial_count}</p>
+                    <p>Dispensed: {prescription.dispensed_count}</p>
+                  </div>
+
+                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
+                    <p>Ready items: {prescription.stock_ready_count}</p>
+                    <p>No stock items: {prescription.no_stock_count}</p>
+                    <p>Completion: {prescription.completion_ratio}%</p>
+                  </div>
+
+                  {prescription.notes ? (
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                      {prescription.notes}
+                    </div>
+                  ) : null}
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                  {prescription.patient?.patient_number ?? "No patient number"} · Received {formatDateTime(prescription.prescribed_at)}
-                </p>
-
-                <p className="text-sm text-muted-foreground">
-                  Prescriber: {prescription.prescribed_by_staff?.full_name ?? "Unknown"}
-                </p>
-
-                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
-                  <p>Total items: {prescription.item_count}</p>
-                  <p>Pending: {prescription.pending_count}</p>
-                  <p>Partial: {prescription.partial_count}</p>
-                  <p>Dispensed: {prescription.dispensed_count}</p>
+                <div className="flex gap-2">
+                  <Button asChild>
+                    <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}`}>
+                      Open for Dispensing
+                    </Link>
+                  </Button>
                 </div>
-
-                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
-                  <p>Ready items: {prescription.stock_ready_count}</p>
-                  <p>No stock items: {prescription.no_stock_count}</p>
-                  <p>Completion: {prescription.completion_ratio}%</p>
-                </div>
-
-                {prescription.notes ? (
-                  <p className="text-sm text-muted-foreground">{prescription.notes}</p>
-                ) : null}
-              </div>
-
-              <div className="flex gap-2">
-                <Button asChild>
-                  <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}`}>
-                    Open for Dispensing
-                  </Link>
-                </Button>
               </div>
             </div>
           ))}
@@ -154,7 +168,7 @@ export function PharmacyQueuePage({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Pharmacy Workspace"
-        title={hospitalName}
+        title="Pharmacy"
         description="Receive doctor prescriptions, confirm stock availability, dispense medication safely, and track partial fulfillment without losing item-level visibility."
         actions={
           <>
@@ -226,47 +240,56 @@ export function PharmacyQueuePage({
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Dispensing Flow"
               description="Use this same rhythm for every prescription."
             />
 
             <div className="mt-4 space-y-3">
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 1: Open the prescription</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Review prescriber details, item list, quantities, and special instructions.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 1"
+                title="Open the prescription"
+                description="Review prescriber details, item list, quantities, and special instructions."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 2: Confirm stock by item</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Dispense what is available, flag missing stock, and keep partial fulfillment visible.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 2"
+                title="Confirm stock by item"
+                description="Dispense what is available, flag missing stock, and keep partial fulfillment visible."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 3: Complete or continue later</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Mark items as dispensed and return later if the prescription is only partially fulfilled.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 3"
+                title="Complete or continue later"
+                description="Mark items as dispensed and return later if the prescription is only partially fulfilled."
+              />
             </div>
           </section>
 
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Queue Summary"
               description="Live pharmacy counts"
             />
 
-            <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
-              <div className="rounded-xl border bg-muted/30 p-3">Total prescriptions: {prescriptions.length}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Active status: {activeCount}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Workflow partial: {partial.length}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Workflow completed: {completed.length}</div>
+            <div className="mt-4 grid gap-3">
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Total prescriptions
+                <div className="mt-1 text-lg font-semibold text-foreground">{prescriptions.length}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Active status
+                <div className="mt-1 text-lg font-semibold text-foreground">{activeCount}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Workflow partial
+                <div className="mt-1 text-lg font-semibold text-foreground">{partial.length}</div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                Workflow completed
+                <div className="mt-1 text-lg font-semibold text-foreground">{completed.length}</div>
+              </div>
             </div>
           </section>
         </div>

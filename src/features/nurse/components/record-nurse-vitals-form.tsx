@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import {
   recordNurseVitals,
   type RecordNurseVitalsState,
@@ -18,9 +19,16 @@ export function RecordNurseVitalsForm({
 }) {
   const action = recordNurseVitals.bind(null, hospitalSlug, admissionId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="space-y-4 rounded-xl border p-4">
+    <form ref={formRef} action={formAction} className="space-y-4 rounded-xl border p-4">
       <div>
         <h2 className="text-lg font-semibold">Record Vitals</h2>
         <p className="text-sm text-muted-foreground">
@@ -29,15 +37,10 @@ export function RecordNurseVitalsForm({
       </div>
 
       {state.message ? (
-        <div
-          className={`rounded-md px-3 py-2 text-sm ${
-            state.success
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {state.message}
-        </div>
+        <InlineFeedback
+          message={state.message}
+          tone={state.success ? "success" : "error"}
+        />
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -93,3 +96,4 @@ export function RecordNurseVitalsForm({
     </form>
   );
 }
+

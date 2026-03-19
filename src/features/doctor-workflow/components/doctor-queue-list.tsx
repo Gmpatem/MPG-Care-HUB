@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+
+import { StatusBadge } from "@/components/layout/status-badge";
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DoctorQueueRow, EncounterStage } from "@/features/doctor-workflow/types";
@@ -19,29 +21,29 @@ function getFullName(row: DoctorQueueRow) {
   return [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" ");
 }
 
-function appointmentVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+function appointmentTone(status: string | null) {
   switch (status) {
     case "checked_in":
-      return "default";
+      return "info" as const;
     case "completed":
-      return "secondary";
+      return "success" as const;
     case "cancelled":
-      return "destructive";
+      return "danger" as const;
     default:
-      return "outline";
+      return "neutral" as const;
   }
 }
 
-function encounterVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+function encounterTone(status: string | null) {
   switch (status) {
-    case "draft":
-      return "outline";
     case "finalized":
-      return "secondary";
+      return "success" as const;
     case "cancelled":
-      return "destructive";
+      return "danger" as const;
+    case "draft":
+      return "neutral" as const;
     default:
-      return "outline";
+      return "neutral" as const;
   }
 }
 
@@ -52,9 +54,9 @@ function stageLabel(stage: EncounterStage | null, encounterId: string | null) {
     case "initial_review":
       return "initial review";
     case "awaiting_results":
-      return "awaiting results";
+      return "awaiting lab results";
     case "results_review":
-      return "results review";
+      return "ready for results review";
     case "treatment_decided":
       return "treatment decided";
     case "admission_requested":
@@ -66,24 +68,24 @@ function stageLabel(stage: EncounterStage | null, encounterId: string | null) {
   }
 }
 
-function stageVariant(stage: EncounterStage | null, encounterId: string | null): "default" | "secondary" | "destructive" | "outline" {
-  if (!encounterId || !stage) return "default";
+function stageTone(stage: EncounterStage | null, encounterId: string | null) {
+  if (!encounterId || !stage) return "info" as const;
 
   switch (stage) {
     case "initial_review":
-      return "default";
+      return "info" as const;
     case "awaiting_results":
-      return "outline";
+      return "warning" as const;
     case "results_review":
-      return "secondary";
+      return "success" as const;
     case "admission_requested":
-      return "destructive";
+      return "danger" as const;
     case "treatment_decided":
-      return "secondary";
+      return "success" as const;
     case "completed":
-      return "secondary";
+      return "neutral" as const;
     default:
-      return "outline";
+      return "neutral" as const;
   }
 }
 
@@ -111,7 +113,7 @@ function sectionTitle(section: string) {
     case "awaiting":
       return "Awaiting Lab Results";
     case "decision":
-      return "Ready For Final Decision";
+      return "Ready for Final Decision";
     case "admission":
       return "Admission Requested";
     case "completed":
@@ -124,15 +126,15 @@ function sectionTitle(section: string) {
 function sectionDescription(section: string) {
   switch (section) {
     case "new":
-      return "Patients needing initial doctor review.";
+      return "Patients needing first doctor review.";
     case "awaiting":
-      return "Open cases waiting on investigations.";
+      return "Cases still waiting on investigation results.";
     case "decision":
-      return "Results available, waiting on final doctor decision.";
+      return "Results are back and ready for doctor action.";
     case "admission":
-      return "Patients moving into inpatient flow.";
+      return "Cases moving into inpatient workflow.";
     case "completed":
-      return "Finished or finalized cases.";
+      return "Finished or finalized clinical work.";
     default:
       return "Clinical worklist for the day.";
   }
@@ -162,49 +164,72 @@ function QueueSection({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">{sectionTitle(section)}</h2>
+        <h2 className="text-lg font-semibold text-foreground">{sectionTitle(section)}</h2>
         <p className="text-sm text-muted-foreground">{sectionDescription(section)}</p>
       </div>
 
       <div className="space-y-4">
         {rows.map((row) => (
-          <div key={row.appointment_id} className="rounded-lg border p-4">
+          <div
+            key={row.appointment_id}
+            className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
+          >
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-semibold">
+                  <h3 className="text-base font-semibold text-foreground">
                     {getFullName(row) || "Unknown patient"}
                   </h3>
 
-                  <Badge variant={appointmentVariant(row.appointment_status)} className="capitalize">
-                    {row.appointment_status ?? "scheduled"}
-                  </Badge>
+                  <StatusBadge
+                    label={row.appointment_status ?? "scheduled"}
+                    tone={appointmentTone(row.appointment_status)}
+                    className="px-2.5 py-1 capitalize font-medium"
+                  />
 
                   {row.encounter_status ? (
-                    <Badge variant={encounterVariant(row.encounter_status)} className="capitalize">
-                      {row.encounter_status}
-                    </Badge>
+                    <StatusBadge
+                      label={row.encounter_status}
+                      tone={encounterTone(row.encounter_status)}
+                      className="px-2.5 py-1 capitalize font-medium"
+                    />
                   ) : null}
 
-                  <Badge variant={stageVariant(row.encounter_stage, row.encounter_id)} className="capitalize">
-                    {stageLabel(row.encounter_stage, row.encounter_id)}
-                  </Badge>
+                  <StatusBadge
+                    label={stageLabel(row.encounter_stage, row.encounter_id)}
+                    tone={stageTone(row.encounter_stage, row.encounter_id)}
+                    className="px-2.5 py-1 capitalize font-medium"
+                  />
 
-                  {row.requires_lab ? <Badge variant="outline">Lab Needed</Badge> : null}
-                  {row.disposition_type ? <Badge variant="outline" className="capitalize">{row.disposition_type.replaceAll("_", " ")}</Badge> : null}
+                  {row.requires_lab ? (
+                    <StatusBadge
+                      label="lab needed"
+                      tone="warning"
+                      className="px-2.5 py-1 font-medium"
+                    />
+                  ) : null}
+
+                  {row.disposition_type ? (
+                    <StatusBadge
+                      label={row.disposition_type.replaceAll("_", " ")}
+                      tone="neutral"
+                      className="px-2.5 py-1 capitalize font-medium"
+                    />
+                  ) : null}
                 </div>
 
-                <div className="grid gap-1 text-sm text-muted-foreground">
-                  <p>
-                    {row.patient_number ?? "No patient number"} · {row.visit_type ?? "outpatient"}
-                  </p>
+                <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                  <p>{row.patient_number ?? "No patient number"} · {row.visit_type ?? "outpatient"}</p>
                   <p>Assigned: {row.assigned_staff_name ?? "Unassigned"}</p>
                   <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
-                  <p>Checked In: {formatDateTime(row.check_in_at)}</p>
+                  <p>Checked in: {formatDateTime(row.check_in_at)}</p>
+                </div>
+
+                <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
                   <p>Queue: {row.queue_number ?? "—"}</p>
-                  <p>Chief Complaint: {row.chief_complaint ?? "—"}</p>
-                  <p>Results Reviewed: {formatDateTime(row.results_reviewed_at)}</p>
-                  <p>Final Decision: {formatDateTime(row.final_decision_at)}</p>
+                  <p>Chief complaint: {row.chief_complaint ?? "—"}</p>
+                  <p>Results reviewed: {formatDateTime(row.results_reviewed_at)}</p>
+                  <p>Final decision: {formatDateTime(row.final_decision_at)}</p>
                 </div>
               </div>
 
@@ -249,15 +274,16 @@ export function DoctorQueueList({
       <CardHeader className="border-b">
         <CardTitle>Doctor Worklist</CardTitle>
         <CardDescription>
-          Clinical cases grouped by stage so doctors can move through care efficiently.
+          Clinical cases grouped by stage so doctors can move through care with less context switching.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-8 py-5">
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-            No patients in the doctor worklist right now.
-          </div>
+          <WorkspaceEmptyState
+            title="No patients in the doctor worklist right now"
+            description="Checked-in visits and active clinical cases will appear here automatically as they move into doctor review."
+          />
         ) : (
           <>
             <QueueSection hospitalSlug={hospitalSlug} section="new" rows={buckets.new} />

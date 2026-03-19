@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+
+import { StatusBadge } from "@/components/layout/status-badge";
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { FrontdeskQueueRow } from "@/features/frontdesk/types";
@@ -19,16 +21,16 @@ function getFullName(row: FrontdeskQueueRow) {
   return [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" ");
 }
 
-function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+function getStatusTone(status: string | null) {
   switch (status) {
     case "checked_in":
-      return "default";
+      return "info" as const;
     case "cancelled":
-      return "destructive";
+      return "danger" as const;
     case "completed":
-      return "secondary";
+      return "success" as const;
     default:
-      return "outline";
+      return "neutral" as const;
   }
 }
 
@@ -56,24 +58,27 @@ export function FrontdeskQueuePreview({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="py-5">
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-            No visits in today&apos;s queue yet.
-          </div>
+          <WorkspaceEmptyState
+            title="No visits in today&apos;s queue yet"
+            description="Patients will appear here once they are scheduled, checked in, or moved into the front desk intake flow."
+          />
         ) : (
           <div className="space-y-3">
             {rows.map((row) => (
               <div
                 key={row.appointment_id}
-                className="flex flex-col gap-3 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between"
+                className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background p-4 lg:flex-row lg:items-center lg:justify-between"
               >
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{getFullName(row) || "Unknown patient"}</p>
-                    <Badge variant={getStatusVariant(row.status)} className="capitalize">
-                      {row.status ?? "scheduled"}
-                    </Badge>
+                    <p className="font-medium text-foreground">{getFullName(row) || "Unknown patient"}</p>
+                    <StatusBadge
+                      label={row.status ?? "scheduled"}
+                      tone={getStatusTone(row.status)}
+                      className="px-2.5 py-1 capitalize font-medium"
+                    />
                   </div>
 
                   <p className="text-sm text-muted-foreground">
@@ -87,7 +92,7 @@ export function FrontdeskQueuePreview({
 
                 <div className="grid gap-1 text-sm text-muted-foreground lg:text-right">
                   <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
-                  <p>Check-In: {formatDateTime(row.check_in_at)}</p>
+                  <p>Check-in: {formatDateTime(row.check_in_at)}</p>
                   <p>Queue: {row.queue_number ?? "—"}</p>
                 </div>
               </div>

@@ -112,7 +112,8 @@ export async function requireHospitalWorkspaceAccess(
     );
 
   if (!isAllowed) {
-    redirect(`/h/${hospitalSlug}`);
+    const requestedWorkspace = requiredWorkspaces[0] ?? "";
+    redirect(`/h/${hospitalSlug}/access-denied?workspace=${requestedWorkspace}`);
   }
 
   return {

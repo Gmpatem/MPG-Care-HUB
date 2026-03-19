@@ -22,12 +22,11 @@ export function WorkspaceSectionHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h2 className="text-[1.45rem] font-semibold tracking-[-0.025em] text-foreground">
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
           {title}
         </h2>
-
         {description ? (
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             {description}
           </p>
         ) : null}

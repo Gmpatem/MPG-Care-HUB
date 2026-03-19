@@ -1,161 +1,171 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckInVitalsForm } from "@/features/frontdesk/components/check-in-vitals-form";
-import type { FrontdeskQueueRow } from "@/features/frontdesk/server/get-frontdesk-queue";
+import { ClipboardList, UserPlus, Users } from "lucide-react";
 
-type HospitalLite = {
-  id: string;
-  name: string;
-  slug: string;
-};
+import { StatusBadge } from "@/components/layout/status-badge";
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { Button } from "@/components/ui/button";
 
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-
-  return new Date(value).toLocaleString("en-PH", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function fullName(row: FrontdeskQueueRow) {
+function fullName(row: any) {
   return [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" ");
 }
 
-function statusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "checked_in":
-      return "default";
-    case "completed":
-      return "secondary";
-    case "cancelled":
-      return "destructive";
-    default:
-      return "outline";
-  }
+function formatDateTime(value: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString();
 }
 
-function VitalsQuickView({ row }: { row: FrontdeskQueueRow }) {
-  const vitals = row.latest_vitals;
-
-  if (!vitals) {
-    return <p className="text-sm text-muted-foreground">No intake vitals recorded yet.</p>;
+function statusTone(status: string | null) {
+  switch (status) {
+    case "checked_in":
+      return "info" as const;
+    case "completed":
+      return "success" as const;
+    case "cancelled":
+      return "danger" as const;
+    default:
+      return "neutral" as const;
   }
-
-  return (
-    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-      <p>Temp:  {vitals.temperature_c ?? "—"}</p>
-      <p>
-        BP:  {vitals.blood_pressure_systolic ?? "—"} / {vitals.blood_pressure_diastolic ?? "—"}
-      </p>
-      <p>Pulse: {vitals.pulse_bpm ?? "—"}</p>
-      <p>Resp: {vitals.respiratory_rate ?? "—"}</p>
-      <p>SpO2: {vitals.spo2 ?? "—"}</p>
-      <p>Weight: {vitals.weight_kg ?? "—"}</p>
-      <p>Height: {vitals.height_cm ?? "—"}</p>
-      <p>Pain: {vitals.pain_score ?? "—"}</p>
-    </div>
-  );
 }
 
 export function FrontdeskQueuePage({
-  hospital,
-  queueRows,
+  hospitalSlug,
+  hospitalName,
+  rows,
 }: {
-  hospital: HospitalLite;
-  queueRows: FrontdeskQueueRow[];
+  hospitalSlug: string;
+  hospitalName: string;
+  rows: any[];
 }) {
+  const checkedInCount = rows.filter((row) => row.status === "checked_in").length;
+  const scheduledCount = rows.filter((row) => row.status === "scheduled").length;
+  const unassignedCount = rows.filter((row) => !row.staff_name).length;
+
   return (
     <main className="space-y-6">
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle>Today&apos;s Queue</CardTitle>
-          <CardDescription>
-            Check in patients, capture intake vitals, and hand off to clinical staff.
-          </CardDescription>
-        </CardHeader>
+      <WorkspacePageHeader
+        eyebrow="Front Desk Queue"
+        title="Front Desk Queue"
+        description="Manage arrivals, track queue order, and move patients into the next stage of care with less confusion at the intake desk."
+        actions={
+          <>
+            <Button asChild>
+              <Link href={`/h/${hospitalSlug}/frontdesk`}>Front Desk Dashboard</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/frontdesk/intake`}>Open Intake</Link>
+            </Button>
+          </>
+        }
+      />
 
-        <CardContent className="py-5">
-          {queueRows.length === 0 ? (
-            <div className="space-y-4 rounded-lg border border-dashed p-6">
-              <div>
-                <h2 className="text-base font-semibold">No visits in queue</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Create a new visit or walk-in to start front desk flow.
-                </p>
-              </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Queue Total"
+          value={rows.length}
+          description="Patients currently visible to front desk"
+          icon={<ClipboardList className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Checked In"
+          value={checkedInCount}
+          description="Patients already arrived and marked present"
+          icon={<Users className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Scheduled"
+          value={scheduledCount}
+          description="Patients still waiting to arrive or be checked in"
+          icon={<UserPlus className="h-4 w-4" />}
+        />
+        <WorkspaceStatCard
+          title="Unassigned"
+          value={unassignedCount}
+          description="Visits without doctor assignment yet"
+          icon={<Users className="h-4 w-4" />}
+        />
+      </div>
 
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href={`/h/${hospital.slug}/frontdesk/patients`}
-                  className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium"
-                >
-                  Find Patient
-                </Link>
+      <section className="surface-panel p-4 sm:p-5">
+        <WorkspaceSectionHeader
+          title="Today’s Queue"
+          description="Scan by queue number first, then confirm patient identity and doctor assignment."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/h/${hospitalSlug}/appointments`}>Appointments</Link>
+            </Button>
+          }
+        />
 
-                <Link
-                  href={`/h/${hospital.slug}/frontdesk/visits/new?mode=walk-in`}
-                  className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium"
-                >
-                  New Walk-In
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {queueRows.map((row) => (
-                <div key={row.appointment_id} className="rounded-lg border p-4">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold">
-                          {fullName(row) || "Unknown patient"}
-                        </h2>
-                        <Badge variant={statusVariant(row.status)} className="capitalize">
-                          {row.status ?? "scheduled"}
-                        </Badge>
-                      </div>
+        {rows.length === 0 ? (
+          <div className="mt-4">
+            <WorkspaceEmptyState
+              title="No patients in the queue right now"
+              description="Scheduled and checked-in visits will appear here automatically as front desk activity begins."
+            />
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {rows.map((row) => (
+              <div
+                key={row.appointment_id}
+                className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
+              >
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-base font-semibold text-foreground">
+                        {fullName(row) || "Unknown patient"}
+                      </p>
 
-                      <div className="grid gap-1 text-sm text-muted-foreground">
-                        <p>
-                          {row.patient_number ?? "No patient number"} · {row.visit_type ?? "outpatient"}
-                        </p>
-                        <p>Doctor: {row.staff_name ?? "Unassigned"}</p>
-                        <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
-                        <p>Checked In: {formatDateTime(row.check_in_at)}</p>
-                        <p>Queue: {row.queue_number ?? "—"}</p>
-                        <p>Reason: {row.reason ?? "—"}</p>
-                      </div>
+                      <StatusBadge
+                        label={row.status ?? "scheduled"}
+                        tone={statusTone(row.status)}
+                        className="px-2.5 py-1 capitalize font-medium"
+                      />
+
+                      {row.visit_type ? (
+                        <StatusBadge
+                          label={row.visit_type}
+                          tone="neutral"
+                          className="px-2.5 py-1 capitalize font-medium"
+                        />
+                      ) : null}
                     </div>
 
-                    <div className="min-w-[260px]">
-                      {row.status === "checked_in" ? (
-                        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                          Patient already checked in.
-                        </div>
-                      ) : (
-                        <CheckInVitalsForm
-                          hospitalSlug={hospital.slug}
-                          appointmentId={row.appointment_id}
-                          patientId={row.patient_id}
-                        />
-                      )}
+                    <p className="text-sm text-muted-foreground">
+                      {row.patient_number ?? "No patient number"} · Queue #{row.queue_number ?? "—"}
+                    </p>
+
+                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                      <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
+                      <p>Check-in: {formatDateTime(row.check_in_at)}</p>
+                      <p>Doctor: {row.staff_name ?? "Unassigned"}</p>
+                      <p>Reason: {row.reason ?? "—"}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-lg bg-muted/30 p-3">
-                    <p className="mb-2 text-sm font-medium">Latest Intake Snapshot</p>
-                    <VitalsQuickView row={row} />
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/h/${hospitalSlug}/patients`}>
+                        Patient Directory
+                      </Link>
+                    </Button>
+
+                    <Button asChild size="sm">
+                      <Link href={`/h/${hospitalSlug}/doctor/appointments/${row.appointment_id}/open`}>
+                        Open Visit
+                      </Link>
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

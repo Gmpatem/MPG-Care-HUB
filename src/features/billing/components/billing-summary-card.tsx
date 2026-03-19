@@ -1,3 +1,12 @@
+import { CreditCard, ReceiptText, Wallet } from "lucide-react";
+
+import { StatusBadge } from "@/components/layout/status-badge";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+
+function formatAmount(value: number) {
+  return value.toFixed(2);
+}
+
 export function BillingSummaryCard({
   invoiceCount,
   totalAmount,
@@ -12,34 +21,45 @@ export function BillingSummaryCard({
   cleared: boolean;
 }) {
   return (
-    <div className="rounded-xl border p-4 space-y-2">
-      <h3 className="font-semibold">Billing Summary</h3>
+    <section className="surface-panel p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-foreground">Billing Summary</h3>
+          <p className="text-sm text-muted-foreground">
+            Current invoice position for this patient admission.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <p>Invoices</p>
-        <p>{invoiceCount}</p>
-
-        <p>Total Billed</p>
-        <p>{totalAmount.toFixed(2)}</p>
-
-        <p>Amount Paid</p>
-        <p>{amountPaid.toFixed(2)}</p>
-
-        <p>Balance Due</p>
-        <p>{balanceDue.toFixed(2)}</p>
+        <StatusBadge
+          label={cleared ? "Billing Cleared" : "Balance Due"}
+          tone={cleared ? "success" : "warning"}
+          className="px-2.5 py-1 font-medium"
+        />
       </div>
 
-      <div className="pt-2">
-        {cleared ? (
-          <span className="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-700">
-            Billing Cleared
-          </span>
-        ) : (
-          <span className="px-2 py-1 text-xs rounded bg-amber-100 text-amber-700">
-            Balance Due
-          </span>
-        )}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <WorkspaceStatCard
+          title="Total Billed"
+          value={formatAmount(totalAmount)}
+          description={`${invoiceCount} invoice${invoiceCount === 1 ? "" : "s"} recorded`}
+          icon={<ReceiptText className="h-4 w-4" />}
+        />
+
+        <WorkspaceStatCard
+          title="Amount Paid"
+          value={formatAmount(amountPaid)}
+          description="Payments already posted"
+          icon={<Wallet className="h-4 w-4" />}
+        />
+
+        <WorkspaceStatCard
+          title="Balance Due"
+          value={formatAmount(balanceDue)}
+          description={cleared ? "No outstanding amount remaining" : "Outstanding amount still unpaid"}
+          icon={<CreditCard className="h-4 w-4" />}
+          valueClassName={cleared ? undefined : "text-amber-700 dark:text-amber-400"}
+        />
       </div>
-    </div>
+    </section>
   );
 }

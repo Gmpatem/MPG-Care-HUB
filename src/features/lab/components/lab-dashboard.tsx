@@ -34,7 +34,7 @@ export function LabDashboard({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Laboratory Workspace"
-        title={hospitalName}
+        title="Laboratory"
         description="Process ordered investigations, enter results by test item, and send completed cases back to doctor review without losing the encounter flow."
         actions={
           <>
@@ -143,3 +143,4 @@ export function LabDashboard({
     </main>
   );
 }
+

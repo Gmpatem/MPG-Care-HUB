@@ -4,6 +4,10 @@ import { AlertTriangle, ClipboardList, Pill, UserRound } from "lucide-react";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
+import { InfoGrid } from "@/components/layout/info-grid";
+import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
+import { StatusBadge } from "@/components/layout/status-badge";
 import { Button } from "@/components/ui/button";
 
 function fullName(patient: any) {
@@ -17,10 +21,15 @@ function formatDateTime(value: string | null) {
 }
 
 function itemTone(item: any) {
-  if (item.status === "dispensed") return "bg-emerald-100 text-emerald-700";
-  if (item.has_stock === false) return "bg-rose-100 text-rose-700";
-  if (item.status === "partially_dispensed") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-700";
+  if (item.status === "dispensed") return "success" as const;
+  if (item.has_stock === false) return "danger" as const;
+  if (item.status === "partially_dispensed") return "warning" as const;
+  return "neutral" as const;
+}
+
+function itemLabel(item: any) {
+  if (item.has_stock === false) return "no stock";
+  return item.status?.replaceAll("_", " ") ?? "pending";
 }
 
 export function PrescriptionDetailPage({
@@ -85,120 +94,139 @@ export function PrescriptionDetailPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.45fr_.95fr]">
-        <section className="space-y-4 rounded-2xl border p-4 sm:p-5">
-          <WorkspaceSectionHeader
-            title="Prescription Summary"
-            description="Confirm patient, prescriber, and timing before dispensing."
+        <div className="space-y-6">
+          <PatientSummaryPanel
+            name={fullName(prescription?.patient)}
+            patientNumber={prescription?.patient?.patient_number}
+            subtitle={`Received ${formatDateTime(prescription?.prescribed_at)}`}
+            statusLabel={prescription?.status?.replaceAll("_", " ") ?? "active"}
+            statusTone={prescription?.status === "dispensed" ? "success" : prescription?.status === "partially_dispensed" ? "warning" : "info"}
+            primaryItems={[
+              { label: "Phone", value: prescription?.patient?.phone },
+              { label: "Prescriber", value: prescription?.prescribed_by_staff?.full_name ?? "Unknown" },
+              { label: "Prescription Status", value: prescription?.status?.replaceAll("_", " ") ?? "—" },
+              { label: "Dispensations", value: dispensations.length },
+            ]}
+            secondaryItems={[
+              { label: "Ready Items", value: readyCount },
+              { label: "Blocked Items", value: blockedCount },
+              { label: "Pending Items", value: pendingCount },
+              { label: "Dispensed Items", value: dispensedCount },
+            ]}
           />
 
-          <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
-            <div className="rounded-xl border bg-muted/30 p-4">
-              <p className="font-medium text-foreground">{fullName(prescription?.patient)}</p>
-              <p className="mt-1">{prescription?.patient?.patient_number ?? "No patient number"}</p>
-              <p className="mt-1">Phone: {prescription?.patient?.phone ?? "—"}</p>
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Prescription Notes"
+              description="Review any doctor instructions before dispensing."
+            />
+
+            <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-4 text-sm leading-6 text-foreground">
+              {prescription?.notes ?? "—"}
             </div>
+          </section>
 
-            <div className="rounded-xl border bg-muted/30 p-4">
-              <p>Prescriber: {prescription?.prescribed_by_staff?.full_name ?? "Unknown"}</p>
-              <p className="mt-1">Prescribed at: {formatDateTime(prescription?.prescribed_at)}</p>
-              <p className="mt-1">Status: {prescription?.status ?? "—"}</p>
-            </div>
-          </div>
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Medication Items"
+              description="Dispense item by item so shortages stay visible instead of being hidden."
+            />
 
-          <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-            Notes: {prescription?.notes ?? "—"}
-          </div>
+            <div className="mt-4 space-y-4">
+              {items.map((item: any) => (
+                <div key={item.id} className="rounded-2xl border border-border/70 bg-background p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-foreground">{item.medication_name}</p>
+                        <StatusBadge
+                          label={itemLabel(item)}
+                          tone={itemTone(item)}
+                          className="px-2.5 py-1 capitalize font-medium"
+                        />
+                      </div>
 
-          <WorkspaceSectionHeader
-            title="Medication Items"
-            description="Dispense item by item so shortages stay visible instead of being hidden."
-          />
+                      <InfoGrid
+                        items={[
+                          { label: "Dose", value: item.dose },
+                          { label: "Frequency", value: item.frequency },
+                          { label: "Duration", value: item.duration },
+                          { label: "Route", value: item.route },
+                          { label: "Qty Prescribed", value: item.quantity_prescribed },
+                          { label: "Qty Dispensed", value: item.quantity_dispensed ?? 0 },
+                          { label: "Available Stock", value: item.available_stock ?? 0 },
+                          { label: "Status", value: item.status?.replaceAll("_", " ") },
+                        ]}
+                      />
 
-          <div className="space-y-4">
-            {items.map((item: any) => (
-              <div key={item.id} className="rounded-xl border bg-background p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{item.medication_name}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs ${itemTone(item)}`}>
-                        {item.has_stock === false ? "no stock" : item.status}
-                      </span>
+                      <div className="rounded-2xl border border-border/70 bg-background/70 p-4 text-sm text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Instructions
+                        </p>
+                        <p className="mt-2 leading-6 text-foreground">
+                          {item.instructions ?? "—"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                      <p>Dose: {item.dose ?? "—"}</p>
-                      <p>Frequency: {item.frequency ?? "—"}</p>
-                      <p>Duration: {item.duration ?? "—"}</p>
-                      <p>Route: {item.route ?? "—"}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild>
+                        <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}/dispense`}>
+                          Dispense Item
+                        </Link>
+                      </Button>
                     </div>
-
-                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-3">
-                      <p>Quantity prescribed: {item.quantity_prescribed ?? "—"}</p>
-                      <p>Quantity dispensed: {item.quantity_dispensed ?? 0}</p>
-                      <p>Available stock: {item.available_stock ?? 0}</p>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground">
-                      Instructions: {item.instructions ?? "—"}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild>
-                      <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}/dispense`}>
-                        Dispense Item
-                      </Link>
-                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border p-4 sm:p-5">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Dispensing Flow"
               description="Safe pharmacy rhythm"
             />
 
             <div className="mt-4 space-y-3">
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 1: Verify the prescription</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confirm patient, doctor, item list, and instructions before touching stock.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 1"
+                title="Verify the prescription"
+                description="Confirm patient, doctor, item list, and instructions before touching stock."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 2: Dispense by item</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Handle each medication separately so partial availability stays visible and safe.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 2"
+                title="Dispense by item"
+                description="Handle each medication separately so partial availability stays visible and safe."
+              />
 
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Step 3: Complete or leave partial</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  If stock is incomplete, leave the prescription partially dispensed rather than hiding the gap.
-                </p>
-              </div>
+              <WorkflowStepCard
+                step="Step 3"
+                title="Complete or leave partial"
+                description="If stock is incomplete, leave the prescription partially dispensed rather than hiding the gap."
+              />
             </div>
           </section>
 
-          <section className="rounded-2xl border p-4 sm:p-5 text-sm text-muted-foreground">
+          <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Live Item Counts"
               description="This prescription only"
             />
 
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-xl border bg-muted/30 p-3">Pending items: {pendingCount}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Ready items: {readyCount}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Blocked items: {blockedCount}</div>
-              <div className="rounded-xl border bg-muted/30 p-3">Dispensations recorded: {dispensations.length}</div>
+            <div className="mt-4">
+              <InfoGrid
+                items={[
+                  { label: "Pending Items", value: pendingCount },
+                  { label: "Ready Items", value: readyCount },
+                  { label: "Blocked Items", value: blockedCount },
+                  { label: "Dispensations Recorded", value: dispensations.length },
+                ]}
+                columnsClassName="sm:grid-cols-2"
+              />
             </div>
           </section>
         </div>

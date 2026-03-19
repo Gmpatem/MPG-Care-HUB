@@ -1,5 +1,12 @@
 import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { InfoGrid } from "@/components/layout/info-grid";
+import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
+import { StatusBadge } from "@/components/layout/status-badge";
 import { PaymentEntryForm } from "@/features/billing/components/payment-entry-form";
 
 function fullName(patient: any) {
@@ -10,6 +17,17 @@ function fullName(patient: any) {
 function formatDateTime(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString();
+}
+
+function formatMoney(value: any) {
+  return Number(value ?? 0).toFixed(2);
+}
+
+function invoiceTone(status: string | null) {
+  if (status === "paid") return "success" as const;
+  if (status === "partially_paid") return "warning" as const;
+  if (status === "cancelled") return "danger" as const;
+  return "neutral" as const;
 }
 
 export function InvoiceDetailPage({
@@ -25,58 +43,86 @@ export function InvoiceDetailPage({
 }) {
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Invoice detail</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{invoice.invoice_number}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {fullName(invoice.patient)} · {invoice.patient?.patient_number ?? "No patient number"}
-          </p>
-        </div>
-
-        <div className="flex gap-2">
+      <WorkspacePageHeader
+        eyebrow="Billing Invoice"
+        title={invoice.invoice_number}
+        description="Review invoice composition, track allocations, and post payments without losing patient or encounter context."
+        actions={
           <Button asChild variant="outline">
             <Link href={`/h/${hospitalSlug}/billing/invoices`}>Back to Invoices</Link>
           </Button>
-        </div>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceStatCard
+          title="Total Amount"
+          value={formatMoney(invoice.total_amount)}
+          description="Invoice total before remaining balance"
+        />
+        <WorkspaceStatCard
+          title="Amount Paid"
+          value={formatMoney(invoice.amount_paid)}
+          description="Payments already posted"
+        />
+        <WorkspaceStatCard
+          title="Balance Due"
+          value={formatMoney(invoice.balance_due)}
+          description="Outstanding amount still unpaid"
+          valueClassName={Number(invoice.balance_due ?? 0) > 0 ? "text-amber-700 dark:text-amber-400" : undefined}
+        />
+        <WorkspaceStatCard
+          title="Line Items"
+          value={items.length}
+          description="Billable entries on this invoice"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-6">
-          <div className="rounded-xl border p-5">
-            <h2 className="text-lg font-semibold">Invoice Summary</h2>
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <p><span className="font-medium">Status:</span> {invoice.status}</p>
-              <p><span className="font-medium">Issued At:</span> {formatDateTime(invoice.issued_at)}</p>
-              <p><span className="font-medium">Due At:</span> {formatDateTime(invoice.due_at)}</p>
-              <p><span className="font-medium">Encounter:</span> {invoice.encounter_id ?? "—"}</p>
-              <p><span className="font-medium">Subtotal:</span> {Number(invoice.subtotal_amount ?? 0).toFixed(2)}</p>
-              <p><span className="font-medium">Discount:</span> {Number(invoice.discount_amount ?? 0).toFixed(2)}</p>
-              <p><span className="font-medium">Tax:</span> {Number(invoice.tax_amount ?? 0).toFixed(2)}</p>
-              <p><span className="font-medium">Total:</span> {Number(invoice.total_amount ?? 0).toFixed(2)}</p>
-              <p><span className="font-medium">Paid:</span> {Number(invoice.amount_paid ?? 0).toFixed(2)}</p>
-              <p><span className="font-medium">Balance:</span> {Number(invoice.balance_due ?? 0).toFixed(2)}</p>
-            </div>
+          <PatientSummaryPanel
+            name={fullName(invoice.patient)}
+            patientNumber={invoice.patient?.patient_number}
+            subtitle={`Invoice ${invoice.invoice_number}`}
+            statusLabel={invoice.status ?? "draft"}
+            statusTone={invoiceTone(invoice.status)}
+            primaryItems={[
+              { label: "Issued At", value: formatDateTime(invoice.issued_at) },
+              { label: "Due At", value: formatDateTime(invoice.due_at) },
+              { label: "Encounter", value: invoice.encounter_id },
+              { label: "Status", value: invoice.status },
+            ]}
+            secondaryItems={[
+              { label: "Subtotal", value: formatMoney(invoice.subtotal_amount) },
+              { label: "Discount", value: formatMoney(invoice.discount_amount) },
+              { label: "Tax", value: formatMoney(invoice.tax_amount) },
+              { label: "Total", value: formatMoney(invoice.total_amount) },
+            ]}
+          />
 
-            <div className="mt-4">
-              <p className="font-medium">Notes</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                {invoice.notes || "—"}
-              </p>
-            </div>
-          </div>
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Invoice Notes"
+              description="Additional billing context"
+            />
 
-          <div className="rounded-xl border">
-            <div className="border-b px-4 py-3">
-              <h2 className="font-medium">Invoice Items</h2>
+            <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-4 text-sm leading-6 text-foreground">
+              {invoice.notes || "—"}
             </div>
+          </section>
+
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Invoice Items"
+              description="Line-by-line charges and payment allocation visibility."
+            />
 
             {items.length === 0 ? (
-              <div className="px-4 py-8 text-sm text-muted-foreground">
+              <div className="mt-4 rounded-2xl border border-dashed border-border/80 bg-background/50 p-4 text-sm text-muted-foreground">
                 No invoice items yet.
               </div>
             ) : (
-              <div className="divide-y">
+              <div className="mt-4 space-y-4">
                 {items.map((item) => {
                   const allocated = (item.payment_allocations ?? []).reduce(
                     (sum: number, row: any) => sum + Number(row.amount ?? 0),
@@ -84,38 +130,42 @@ export function InvoiceDetailPage({
                   );
 
                   return (
-                    <div key={item.id} className="px-4 py-4">
+                    <div key={item.id} className="rounded-2xl border border-border/70 bg-background p-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{item.description}</p>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                          {item.item_type}
-                        </span>
+                        <p className="font-medium text-foreground">{item.description}</p>
+                        <StatusBadge
+                          label={item.item_type}
+                          tone="neutral"
+                          className="px-2.5 py-1 capitalize font-medium"
+                        />
                         {item.source_entity_type ? (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                            {item.source_entity_type}
-                          </span>
+                          <StatusBadge
+                            label={item.source_entity_type}
+                            tone="info"
+                            className="px-2.5 py-1 capitalize font-medium"
+                          />
                         ) : null}
                       </div>
 
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Qty {Number(item.quantity ?? 0).toFixed(2)} · Unit {Number(item.unit_price ?? 0).toFixed(2)} · Line {Number(item.line_total ?? 0).toFixed(2)}
-                      </p>
-
-                      <p className="text-sm text-muted-foreground">
-                        Allocated {allocated.toFixed(2)} · Unpaid {Math.max(0, Number(item.line_total ?? 0) - allocated).toFixed(2)}
-                      </p>
-
-                      {item.source_entity_id ? (
-                        <p className="text-xs text-muted-foreground">
-                          Source: {item.source_entity_type} / {item.source_entity_id}
-                        </p>
-                      ) : null}
+                      <div className="mt-3">
+                        <InfoGrid
+                          items={[
+                            { label: "Quantity", value: formatMoney(item.quantity) },
+                            { label: "Unit Price", value: formatMoney(item.unit_price) },
+                            { label: "Line Total", value: formatMoney(item.line_total) },
+                            { label: "Allocated", value: allocated.toFixed(2) },
+                            { label: "Unpaid", value: Math.max(0, Number(item.line_total ?? 0) - allocated).toFixed(2) },
+                            { label: "Source ID", value: item.source_entity_id },
+                          ]}
+                          columnsClassName="md:grid-cols-2 xl:grid-cols-3"
+                        />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </div>
+          </section>
         </div>
 
         <div className="space-y-6">
@@ -132,44 +182,55 @@ export function InvoiceDetailPage({
             defaultInvoiceId={invoice.id}
           />
 
-          <div className="rounded-xl border">
-            <div className="border-b px-4 py-3">
-              <h2 className="font-medium">Payments</h2>
-            </div>
+          <section className="surface-panel p-4 sm:p-5">
+            <WorkspaceSectionHeader
+              title="Payments"
+              description="Recorded payments and allocations"
+            />
 
             {payments.length === 0 ? (
-              <div className="px-4 py-8 text-sm text-muted-foreground">
+              <div className="mt-4 rounded-2xl border border-dashed border-border/80 bg-background/50 p-4 text-sm text-muted-foreground">
                 No payments posted yet.
               </div>
             ) : (
-              <div className="divide-y">
+              <div className="mt-4 space-y-4">
                 {payments.map((payment) => (
-                  <div key={payment.id} className="px-4 py-4">
+                  <div key={payment.id} className="rounded-2xl border border-border/70 bg-background p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{Number(payment.amount ?? 0).toFixed(2)}</p>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                        {payment.method}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                        {payment.status}
-                      </span>
+                      <p className="font-medium text-foreground">{formatMoney(payment.amount)}</p>
+                      <StatusBadge
+                        label={payment.method}
+                        tone="info"
+                        className="px-2.5 py-1 capitalize font-medium"
+                      />
+                      <StatusBadge
+                        label={payment.status}
+                        tone={payment.status === "posted" ? "success" : "neutral"}
+                        className="px-2.5 py-1 capitalize font-medium"
+                      />
                     </div>
 
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Receipt: {payment.receipt_number ?? "—"} · Ref: {payment.reference_number ?? "—"}
-                    </p>
-
-                    <p className="text-sm text-muted-foreground">
-                      Payer: {payment.payer_name ?? "—"} · {formatDateTime(payment.payment_date)}
-                    </p>
+                    <div className="mt-3">
+                      <InfoGrid
+                        items={[
+                          { label: "Receipt", value: payment.receipt_number },
+                          { label: "Reference", value: payment.reference_number },
+                          { label: "Payer", value: payment.payer_name },
+                          { label: "Payment Date", value: formatDateTime(payment.payment_date) },
+                        ]}
+                        columnsClassName="md:grid-cols-2"
+                      />
+                    </div>
 
                     {(payment.payment_allocations ?? []).length > 0 ? (
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        Allocations:
-                        <ul className="mt-1 list-disc pl-5">
+                      <div className="mt-3 rounded-2xl border border-border/70 bg-background/70 p-4 text-sm text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Allocations
+                        </p>
+                        <ul className="mt-2 space-y-1">
                           {payment.payment_allocations.map((allocation: any) => (
                             <li key={allocation.id}>
-                              Item {allocation.invoice_item_id} · {Number(allocation.amount ?? 0).toFixed(2)}
+                              Item {allocation.invoice_item_id} · {formatMoney(allocation.amount)}
                             </li>
                           ))}
                         </ul>
@@ -177,13 +238,15 @@ export function InvoiceDetailPage({
                     ) : null}
 
                     {payment.notes ? (
-                      <p className="mt-2 text-sm text-muted-foreground">{payment.notes}</p>
+                      <div className="mt-3 rounded-2xl border border-border/70 bg-background/70 p-4 text-sm leading-6 text-foreground">
+                        {payment.notes}
+                      </div>
                     ) : null}
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
     </main>

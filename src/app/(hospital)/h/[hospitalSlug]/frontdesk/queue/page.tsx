@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+
 import { FrontdeskQueuePage } from "@/features/frontdesk/components/frontdesk-queue-page";
 import { getFrontdeskQueue } from "@/features/frontdesk/server/get-frontdesk-queue";
 
@@ -16,5 +17,11 @@ export default async function FrontdeskQueueRoute({ params }: PageProps) {
     notFound();
   }
 
-  return <FrontdeskQueuePage hospital={data.hospital} queueRows={data.queueRows} />;
+  return (
+    <FrontdeskQueuePage
+      hospitalSlug={data.hospital.slug}
+      hospitalName={data.hospital.name}
+      rows={data.queueRows}
+    />
+  );
 }

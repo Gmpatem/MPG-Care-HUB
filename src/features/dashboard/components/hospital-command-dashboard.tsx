@@ -8,41 +8,16 @@ import {
   Users,
 } from "lucide-react";
 
+import { StatusBadge } from "@/components/layout/status-badge";
+import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { Button } from "@/components/ui/button";
 
 function statusTone(status: string) {
-  if (status === "scheduled") return "bg-blue-100 text-blue-700";
-  if (status === "checked_in") return "bg-amber-100 text-amber-700";
-  if (status === "completed") return "bg-emerald-100 text-emerald-700";
-  if (status === "cancelled") return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
-}
-
-function StatTile({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-[1.15rem] border border-[#bfd7ea] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(13,27,42,0.035)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-[#5f7891]">{title}</p>
-          <div className="mt-2 text-[1.9rem] font-semibold leading-none tracking-[-0.04em] text-[#0d1b2a]">
-            {value}
-          </div>
-        </div>
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(14,122,145,0.12),rgba(42,179,204,0.16))] text-primary ring-1 ring-[#c8ddef]">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
+  if (status === "scheduled") return "info" as const;
+  if (status === "checked_in") return "warning" as const;
+  if (status === "completed") return "success" as const;
+  if (status === "cancelled") return "danger" as const;
+  return "neutral" as const;
 }
 
 function PanelShell({
@@ -163,40 +138,41 @@ export function HospitalCommandDashboard({
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <StatTile
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <WorkspaceStatCard
           title="Active Admissions"
           value={stats.active_admissions}
+          description="Current inpatient ward load"
           icon={<BedDouble className="h-4 w-4" />}
         />
-        <StatTile
+        <WorkspaceStatCard
           title="Discharged Today"
           value={stats.discharged_today}
+          description="Completed discharge activity today"
           icon={<ClipboardCheck className="h-4 w-4" />}
         />
-        <StatTile
-          title="Total Beds"
-          value={stats.total_beds}
-          icon={<BedDouble className="h-4 w-4" />}
-        />
-        <StatTile
-          title="Occupied Beds"
-          value={stats.occupied_beds}
+        <WorkspaceStatCard
+          title="Bed Utilization"
+          value={`${stats.total_beds > 0 ? Math.round((stats.occupied_beds / stats.total_beds) * 100) : 0}%`}
+          description={`${stats.occupied_beds} occupied of ${stats.total_beds} total beds`}
           icon={<Activity className="h-4 w-4" />}
         />
-        <StatTile
+        <WorkspaceStatCard
           title="Available Beds"
           value={stats.available_beds}
+          description="Beds ready for new admissions"
           icon={<Users className="h-4 w-4" />}
         />
-        <StatTile
+        <WorkspaceStatCard
           title="Discharge Requested"
           value={stats.discharge_requested}
+          description="Cases needing discharge handling"
           icon={<ClipboardCheck className="h-4 w-4" />}
         />
-        <StatTile
+        <WorkspaceStatCard
           title="Today’s Queue"
           value={stats.todays_queue}
+          description="Appointments moving through intake"
           icon={<Users className="h-4 w-4" />}
         />
       </div>
@@ -227,27 +203,29 @@ export function HospitalCommandDashboard({
                       </p>
                     </div>
 
-                    <span className="rounded-full bg-[rgba(17,150,176,0.10)] px-2.5 py-1 text-xs font-medium text-[#0d6175]">
-                      {ward.active_admissions} admissions
-                    </span>
+                    <StatusBadge
+                      label={`${ward.active_admissions} admissions`}
+                      tone="info"
+                      className="px-2.5 py-1 font-medium"
+                    />
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Occupied Beds
                       <div className="mt-1 text-lg font-semibold text-foreground">{ward.occupied_beds}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Available Beds
                       <div className="mt-1 text-lg font-semibold text-foreground">{ward.available_beds}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Discharge Requested
                       <div className="mt-1 text-lg font-semibold text-foreground">{ward.discharge_requested}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Ward Type
-                      <div className="mt-1 text-lg font-semibold text-foreground">{ward.ward_type ?? "general"}</div>
+                      <div className="mt-1 text-lg font-semibold capitalize text-foreground">{ward.ward_type ?? "general"}</div>
                     </div>
                   </div>
                 </div>
@@ -266,30 +244,30 @@ export function HospitalCommandDashboard({
           }
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="surface-soft p-4">
-              <p className="text-sm text-muted-foreground">Discharge Requested</p>
-              <div className="mt-2 text-[1.8rem] font-semibold tracking-[-0.04em] text-foreground">
-                {nurseWorkload.discharge_requested}
-              </div>
-            </div>
-            <div className="surface-soft p-4">
-              <p className="text-sm text-muted-foreground">Overdue Vitals</p>
-              <div className="mt-2 text-[1.8rem] font-semibold tracking-[-0.04em] text-foreground">
-                {nurseWorkload.overdue_vitals}
-              </div>
-            </div>
-            <div className="surface-soft p-4">
-              <p className="text-sm text-muted-foreground">Missing Vitals</p>
-              <div className="mt-2 text-[1.8rem] font-semibold tracking-[-0.04em] text-foreground">
-                {nurseWorkload.missing_vitals}
-              </div>
-            </div>
-            <div className="surface-soft p-4">
-              <p className="text-sm text-muted-foreground">Due Soon</p>
-              <div className="mt-2 text-[1.8rem] font-semibold tracking-[-0.04em] text-foreground">
-                {nurseWorkload.due_vitals}
-              </div>
-            </div>
+            <WorkspaceStatCard
+              title="Discharge Requested"
+              value={nurseWorkload.discharge_requested}
+              description="Admissions awaiting ward-side discharge handling"
+              icon={<ClipboardCheck className="h-4 w-4" />}
+            />
+            <WorkspaceStatCard
+              title="Overdue Vitals"
+              value={nurseWorkload.overdue_vitals}
+              description="Patients already past scheduled vital checks"
+              icon={<UserRound className="h-4 w-4" />}
+            />
+            <WorkspaceStatCard
+              title="Missing Vitals"
+              value={nurseWorkload.missing_vitals}
+              description="Admissions without expected vital entries"
+              icon={<UserRound className="h-4 w-4" />}
+            />
+            <WorkspaceStatCard
+              title="Due Soon"
+              value={nurseWorkload.due_vitals}
+              description="Vital checks approaching soon"
+              icon={<Activity className="h-4 w-4" />}
+            />
           </div>
         </PanelShell>
       </div>
@@ -327,11 +305,11 @@ export function HospitalCommandDashboard({
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Today queue
                       <div className="mt-1 text-lg font-semibold text-foreground">{doctor.today_queue}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7e6f2] bg-white/70 p-3 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
                       Active inpatients
                       <div className="mt-1 text-lg font-semibold text-foreground">{doctor.active_inpatients}</div>
                     </div>
@@ -361,9 +339,11 @@ export function HospitalCommandDashboard({
                 <div key={item.id} className="surface-soft p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium text-foreground">Queue #{item.queue_number ?? "—"}</p>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone(item.status)}`}>
-                      {item.status}
-                    </span>
+                    <StatusBadge
+                      label={item.status.replace(/_/g, " ")}
+                      tone={statusTone(item.status)}
+                      className="px-2.5 py-1 font-medium capitalize"
+                    />
                   </div>
 
                   <div className="mt-3 flex items-start gap-3 text-sm text-muted-foreground">

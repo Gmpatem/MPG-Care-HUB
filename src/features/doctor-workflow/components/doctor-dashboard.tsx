@@ -41,7 +41,7 @@ export function DoctorDashboard({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Doctor Workspace"
-        title={hospital.name}
+        title="Doctor Workspace"
         description="Review consultations, request investigations, revisit results, and make final clinical decisions that move patients to pharmacy, ward, discharge, or follow-up."
         actions={
           <>
@@ -134,3 +134,4 @@ export function DoctorDashboard({
     </main>
   );
 }
+

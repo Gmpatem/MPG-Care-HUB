@@ -216,7 +216,7 @@ export function WardDashboardPage({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Ward Workspace"
-        title={hospitalName}
+        title="Ward Workspace"
         description="Manage admitted patients, maintain bed visibility, monitor discharge pressure, and move active inpatient cases safely through ward operations."
         actions={
           <>
@@ -360,3 +360,4 @@ export function WardDashboardPage({
     </main>
   );
 }
+

@@ -3,6 +3,7 @@ import { ArrowRight, ClipboardList, Search, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
@@ -32,7 +33,7 @@ export function FrontdeskDashboard({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Front Desk Workspace"
-        title={hospital.name}
+        title="Front Desk"
         description="Register patients, confirm returning records, schedule visits, and hand patients into the live care queue without duplicate intake."
         actions={
           <>
@@ -75,16 +76,16 @@ export function FrontdeskDashboard({
             >
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
+                <Input
                   name="q"
                   placeholder="Search by patient name, phone number, or patient number..."
-                  className="h-11 w-full rounded-xl border bg-background pl-10 pr-3 text-sm"
+                  className="h-11 pl-10"
                 />
               </div>
 
-              <button className="inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-medium transition-colors hover:bg-muted">
+              <Button type="submit" variant="outline" className="h-11">
                 Open Intake
-              </button>
+              </Button>
             </form>
           </div>
         </CardContent>
@@ -151,3 +152,5 @@ export function FrontdeskDashboard({
     </main>
   );
 }
+
+

@@ -1,389 +1,178 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Building2, ShieldCheck } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Loader2, LogIn, Mail, ShieldCheck } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/browser";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { getFriendlyErrorMessage } from "@/lib/ui/get-friendly-error-message";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type SessionState = {
-  checked: boolean;
-  email: string | null;
-};
+type MessageTone = "error" | "success" | "info";
 
-type AuthMode = "login" | "signup";
-
-export default function LoginClient() {
-  const supabase = useMemo(() => createClient(), []);
+export function LoginClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [loadingPassword, setLoadingPassword] = useState(false);
-  const [loadingRecovery, setLoadingRecovery] = useState(false);
-  const [loadingSignup, setLoadingSignup] = useState(false);
-
-  const [message, setMessage] = useState("");
-  const [sessionState, setSessionState] = useState<SessionState>({
-    checked: false,
-    email: null,
-  });
-
+  const supabase = useMemo(() => createClient(), []);
   const next = searchParams.get("next") || "/platform";
 
-  useEffect(() => {
-    let mounted = true;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<MessageTone>("info");
+  const [isPending, startTransition] = useTransition();
+  const [isResetPending, startResetTransition] = useTransition();
 
-    async function checkSession() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  async function handlePasswordLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setMessageTone("info");
 
-      if (!mounted) return;
-
-      setSessionState({
-        checked: true,
-        email: user?.email ?? null,
+    startTransition(async () => {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-    }
 
-    checkSession();
+      if (error) {
+        setMessage(getFriendlyErrorMessage(error));
+        setMessageTone("error");
+        return;
+      }
 
-    return () => {
-      mounted = false;
-    };
-  }, [supabase]);
+      setMessage("Signing you in...");
+      setMessageTone("success");
 
-  async function handlePasswordLogin(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoadingPassword(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      router.replace(next);
+      router.refresh();
     });
-
-    if (error) {
-      setMessage(error.message);
-      setLoadingPassword(false);
-      return;
-    }
-
-    await supabase.auth.getUser();
-    window.location.replace(next);
-  }
-
-  async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoadingSignup(true);
-    setMessage("");
-
-    if (!fullName.trim()) {
-      setMessage("Full name is required.");
-      setLoadingSignup(false);
-      return;
-    }
-
-    if (!email.trim()) {
-      setMessage("Email is required.");
-      setLoadingSignup(false);
-      return;
-    }
-
-    if (!password || password.length < 6) {
-      setMessage("Password must be at least 6 characters.");
-      setLoadingSignup(false);
-      return;
-    }
-
-    const callbackUrl = new URL("/auth/callback", window.location.origin);
-    callbackUrl.searchParams.set("next", "/onboarding/create-facility");
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: callbackUrl.toString(),
-        data: {
-          full_name: fullName.trim(),
-        },
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setLoadingSignup(false);
-      return;
-    }
-
-    const signedInUser = data.user;
-    const hasSession = !!data.session;
-
-    if (signedInUser) {
-      await supabase.from("profiles").upsert(
-        {
-          id: signedInUser.id,
-          full_name: fullName.trim(),
-          email: signedInUser.email ?? email,
-        },
-        {
-          onConflict: "id",
-        }
-      );
-    }
-
-    if (hasSession) {
-      await supabase.auth.getUser();
-      window.location.replace("/onboarding/create-facility");
-      return;
-    }
-
-    setMessage(
-      "Account created. Check your email to verify your account, then continue to facility setup."
-    );
-    setLoadingSignup(false);
   }
 
   async function handleForgotPassword() {
-    if (!email) {
-      setMessage("Enter your email first.");
+    if (!email.trim()) {
+      setMessage("Enter your email first so we know where to send the reset link.");
+      setMessageTone("info");
       return;
     }
 
-    setLoadingRecovery(true);
     setMessage("");
+    setMessageTone("info");
 
-    const resetUrl = new URL("/auth/callback", window.location.origin);
-    resetUrl.searchParams.set("next", "/reset-password");
+    startResetTransition(async () => {
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/login`
+          : undefined;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: resetUrl.toString(),
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (error) {
+        setMessage(getFriendlyErrorMessage(error));
+        setMessageTone("error");
+        return;
+      }
+
+      setMessage("Password reset email sent. Check your inbox for the reset link.");
+      setMessageTone("success");
     });
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage("Password reset email sent. Check your inbox.");
-    }
-
-    setLoadingRecovery(false);
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    setSessionState({
-      checked: true,
-      email: null,
-    });
-    window.location.reload();
-  }
-
-  function handleContinue() {
-    window.location.replace(next);
-  }
-
-  function switchMode(nextMode: AuthMode) {
-    setMode(nextMode);
-    setMessage("");
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[1.05fr_.95fr]">
-        <section className="hero-mesh relative hidden overflow-hidden lg:flex">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_55%_at_88%_-4%,rgba(42,179,204,0.25),transparent),radial-gradient(ellipse_35%_40%_at_-8%_88%,rgba(83,74,183,0.18),transparent)]" />
-          <div className="relative z-10 flex w-full flex-col justify-between px-10 py-12 text-white">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/12">
-                  <Building2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="eyebrow-light">MPG Care Hub</p>
-                  <p className="text-sm text-white/70">Hospital workspace system</p>
-                </div>
-              </div>
-
-              <div className="mt-14 max-w-xl space-y-4">
-                <p className="eyebrow-light">Secure workspace access</p>
-                <h1 className="text-4xl font-semibold tracking-tight">
-                  Sign in to the hospital operations system without losing your place in the workflow.
-                </h1>
-                <p className="text-base leading-7 text-white/74">
-                  Access front desk, doctor, lab, pharmacy, ward, nurse, billing, and discharge workspaces from one secure account flow.
-                </p>
-              </div>
+    <div className="w-full max-w-md">
+      <div className="hero-mesh rounded-[1.6rem] p-[1px] shadow-[0_18px_55px_rgba(11,42,74,0.08)]">
+        <div className="rounded-[1.52rem] bg-white/92 p-6 dark:bg-[#101c2c]/88 sm:p-7">
+          <div className="space-y-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(14,122,145,1),rgba(42,179,204,1))] text-white shadow-[0_14px_30px_rgba(14,122,145,0.22)]">
+              <ShieldCheck className="h-5 w-5" />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-                <ShieldCheck className="h-5 w-5" />
-                <p className="mt-4 font-medium">Tenant-safe access</p>
-                <p className="mt-1 text-sm text-white/70">Scoped by hospital and workspace role.</p>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-                <Building2 className="h-5 w-5" />
-                <p className="mt-4 font-medium">One account flow</p>
-                <p className="mt-1 text-sm text-white/70">Sign in, continue, or create a facility from one entry point.</p>
-              </div>
+            <div>
+              <p className="eyebrow">MPG Care Hub</p>
+              <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                Sign in to your workspace
+              </h1>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Access your hospital workflow, patient queues, and operational dashboards.
+              </p>
             </div>
           </div>
-        </section>
 
-        <section className="flex items-center justify-center px-6 py-10">
-          <Card className="w-full max-w-md rounded-[1.4rem] border-border/80 shadow-[0_18px_50px_rgba(13,27,42,0.06)]">
-            <CardHeader className="space-y-3 pb-2">
-              <div className="lg:hidden">
-                <p className="eyebrow">MPG Care Hub</p>
-              </div>
-              <CardTitle className="text-2xl">Welcome back</CardTitle>
-              <CardDescription className="text-sm leading-6">
-                Sign in to your workspace or create a new healthcare facility account.
-              </CardDescription>
-            </CardHeader>
+          {message ? (
+            <div className="mt-5">
+              <InlineFeedback message={message} tone={messageTone} />
+            </div>
+          ) : null}
 
-            <CardContent>
-              {!sessionState.checked ? (
-                <p className="text-sm text-muted-foreground">Checking current session...</p>
-              ) : sessionState.email ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border bg-muted/40 p-3 text-sm">
-                    You are already signed in as <span className="font-medium">{sessionState.email}</span>.
-                  </div>
+          <form onSubmit={handlePasswordLogin} className="mt-6 space-y-4">
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Email</span>
+              <Input
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@hospital.com"
+                className="h-11"
+                disabled={isPending || isResetPending}
+              />
+            </label>
 
-                  <div className="flex flex-col gap-3">
-                    <Button onClick={handleContinue}>Continue</Button>
-                    <Button type="button" variant="outline" onClick={handleLogout}>
-                      Sign out and switch account
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-5 grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={mode === "login" ? "default" : "outline"}
-                      onClick={() => switchMode("login")}
-                    >
-                      Sign In
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={mode === "signup" ? "default" : "outline"}
-                      onClick={() => switchMode("signup")}
-                    >
-                      Create Account
-                    </Button>
-                  </div>
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Password</span>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                className="h-11"
+                disabled={isPending || isResetPending}
+              />
+            </label>
 
-                  {message ? (
-                    <div className="mb-4 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                      {message}
-                    </div>
-                  ) : null}
+            <div className="flex flex-col gap-3 pt-1">
+              <Button type="submit" disabled={isPending || isResetPending} className="h-11">
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </>
+                )}
+              </Button>
 
-                  {mode === "login" ? (
-                    <>
-                      <form onSubmit={handlePasswordLogin} className="space-y-4">
-                        <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                          className="h-11 rounded-xl"
-                        />
-
-                        <Input
-                          type="password"
-                          placeholder="Password"
-                          autoComplete="current-password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="h-11 rounded-xl"
-                        />
-
-                        <Button type="submit" className="h-11 w-full" disabled={loadingPassword}>
-                          {loadingPassword ? "Signing in..." : "Sign in with Password"}
-                        </Button>
-                      </form>
-
-                      <div className="mt-4">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="w-full"
-                          onClick={handleForgotPassword}
-                          disabled={loadingRecovery}
-                        >
-                          {loadingRecovery ? "Sending reset email..." : "Forgot password?"}
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <form onSubmit={handleSignup} className="space-y-4">
-                      <Input
-                        type="text"
-                        placeholder="Full name"
-                        autoComplete="name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        className="h-11 rounded-xl"
-                      />
-
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="h-11 rounded-xl"
-                      />
-
-                      <Input
-                        type="password"
-                        placeholder="Create password"
-                        autoComplete="new-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="h-11 rounded-xl"
-                      />
-
-                      <Button type="submit" className="h-11 w-full" disabled={loadingSignup}>
-                        {loadingSignup ? "Creating account..." : "Create account"}
-                      </Button>
-                    </form>
-                  )}
-
-                  <div className="mt-6 text-center text-sm text-muted-foreground">
-                    <Link href="/" className="underline underline-offset-4">
-                      Back to home
-                    </Link>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </section>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleForgotPassword}
+                disabled={isPending || isResetPending}
+                className="h-11"
+              >
+                {isResetPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending reset link...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Forgot Password
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

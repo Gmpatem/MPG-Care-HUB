@@ -43,7 +43,7 @@ export function BillingDashboardPage({
     <main className="space-y-6">
       <WorkspacePageHeader
         eyebrow="Billing Workspace"
-        title={hospitalName}
+        title="Billing"
         description="Review open balances, post payments, and keep financial clearance visible for patient discharge and service completion."
         actions={
           <>
@@ -219,3 +219,4 @@ export function BillingDashboardPage({
     </main>
   );
 }
+

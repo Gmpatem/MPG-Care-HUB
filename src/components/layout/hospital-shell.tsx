@@ -257,16 +257,27 @@ export function HospitalShell({
     canBilling ? { label: "Receive Payment", href: `/h/${hospitalSlug}/billing/payments` } : null,
   ].filter(Boolean) as Array<{ label: string; href: string }>;
 
+  const activeSection =
+    sections.find((section) =>
+      section.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    ) ?? null;
+
+  const activeItem =
+    activeSection?.items.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ?? null;
+
+  const workspaceEyebrow = activeSection?.title ?? "Hospital Workspace";
+  const workspaceTitle = activeItem?.label ?? "Hospital Overview";
+
   function renderNav() {
     return (
-      <nav className="space-y-6">
+      <nav className="space-y-7">
         {sections.map((section) => (
-          <div key={section.title} className="space-y-2">
+          <div key={section.title} className="space-y-2.5">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
               {section.title}
             </p>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -278,8 +289,8 @@ export function HospitalShell({
                     className={cn(
                       "group relative flex items-start gap-3 rounded-2xl px-3 py-3 transition-all",
                       isActive
-                        ? "bg-[rgba(42,179,204,0.16)] text-white"
-                        : "text-white/62 hover:bg-white/8 hover:text-white"
+                        ? "bg-[rgba(42,179,204,0.16)] text-white shadow-[inset_0_0_0_1px_rgba(42,179,204,0.12)]"
+                        : "text-white/68 hover:bg-white/8 hover:text-white"
                     )}
                   >
                     {isActive ? (
@@ -297,10 +308,17 @@ export function HospitalShell({
                       <Icon className="h-4 w-4" />
                     </span>
 
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{item.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium leading-5">{item.label}</span>
                       {item.description ? (
-                        <span className={cn("mt-0.5 block text-xs", isActive ? "text-white/72" : "text-white/42")}>
+                        <span
+                          className={cn(
+                            "mt-0.5 block overflow-hidden text-xs leading-5 transition-all duration-200",
+                            isActive
+                              ? "max-h-10 opacity-100 text-white/72"
+                              : "max-h-0 opacity-0 text-white/42 group-hover:max-h-10 group-hover:opacity-100 group-focus-visible:max-h-10 group-focus-visible:opacity-100"
+                          )}
+                        >
                           {item.description}
                         </span>
                       ) : null}
@@ -386,9 +404,9 @@ export function HospitalShell({
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="eyebrow">Hospital Workspace</p>
+                <p className="eyebrow">{workspaceEyebrow}</p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="truncate text-base font-semibold sm:text-lg">{hospitalName}</h2>
+                  <h2 className="truncate text-base font-semibold sm:text-lg">{workspaceTitle}</h2>
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
                     {roleLabel}
                   </span>
@@ -405,44 +423,7 @@ export function HospitalShell({
             </div>
           </header>
 
-          <main className="flex-1">
-            <div className="px-4 py-5 sm:px-6">
-              <div className="surface-panel hero-mesh relative overflow-hidden rounded-[1.35rem] p-[1px]">
-                <div className="relative rounded-[1.28rem] bg-white/92 p-5 dark:bg-[#101c2c]/88">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="space-y-1">
-                      <p className="eyebrow">Clinical Operations</p>
-                      <h3 className="text-lg font-semibold text-balance">
-                        Work across patient flow without leaving the hospital workspace
-                      </h3>
-                      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                        Use the sidebar to move between Front Desk, Doctor, Lab, Pharmacy, Ward, Billing, and Administration.
-                        The hospital name appears once here and once in the shell, not everywhere at once.
-                      </p>
-                    </div>
-
-                    {quickLinks.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {quickLinks.slice(0, 4).map((link, index) => (
-                          <Button
-                            key={link.href}
-                            asChild
-                            variant={index === 0 ? "default" : "outline"}
-                            size="sm"
-                            className={index === 0 ? "bg-primary text-primary-foreground hover:bg-[#0d6175]" : ""}
-                          >
-                            <Link href={link.href}>{link.label}</Link>
-                          </Button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="px-4 pb-8 sm:px-6 lg:px-8">{children}</div>
-          </main>
+          <main className="flex-1 px-4 pb-8 pt-5 sm:px-6 lg:px-8">{children}</main>
         </div>
       </div>
     </div>

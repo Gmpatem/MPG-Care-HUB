@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import {
   finalizePatientDischarge,
   type FinalizePatientDischargeState,
@@ -20,19 +21,27 @@ export function FinalizePatientDischargeForm({
 }) {
   const action = finalizePatientDischarge.bind(null, hospitalSlug, admissionId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function handleConfirmSubmit() {
+    if (disabled || pending) return;
+
+    const confirmed = window.confirm(
+      "Finalize patient discharge now?\n\nThis will mark the admission as discharged and release the assigned bed."
+    );
+
+    if (confirmed) {
+      formRef.current?.requestSubmit();
+    }
+  }
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form ref={formRef} action={formAction} className="space-y-3">
       {state.message ? (
-        <div
-          className={`rounded-md px-3 py-2 text-sm ${
-            state.success
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {state.message}
-        </div>
+        <InlineFeedback
+          message={state.message}
+          tone={state.success ? "success" : "error"}
+        />
       ) : null}
 
       <label className="grid gap-2 text-sm">
@@ -45,9 +54,10 @@ export function FinalizePatientDischargeForm({
         />
       </label>
 
-      <Button type="submit" disabled={pending || disabled}>
+      <Button type="button" disabled={pending || disabled} onClick={handleConfirmSubmit}>
         {pending ? "Finalizing..." : "Finalize Discharge"}
       </Button>
     </form>
   );
 }
+
