@@ -13,35 +13,15 @@ import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { StatusBadge } from "@/components/layout/status-badge";
 import { InfoGrid } from "@/components/layout/info-grid";
-import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
-
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
-
-function fullName(patient: any) {
-  if (!patient) return "Unknown patient";
-  return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
-}
-
-function encounterTone(stage: string | null) {
-  if (stage === "awaiting_results") return "warning" as const;
-  if (stage === "results_review") return "success" as const;
-  if (stage === "admission_requested") return "danger" as const;
-  if (stage === "completed") return "neutral" as const;
-  return "info" as const;
-}
-
-function encounterLabel(stage: string | null) {
-  if (stage === "awaiting_results") return "awaiting lab results";
-  if (stage === "results_review") return "ready for results review";
-  if (stage === "admission_requested") return "admission requested";
-  if (stage === "completed") return "completed";
-  if (stage === "treatment_decided") return "treatment decided";
-  return "initial review";
-}
+import {
+  SharedPatientContext,
+  fullName,
+  formatDateTime,
+  encounterTone,
+  encounterLabel,
+} from "@/components/layout/shared-patient-context";
+import { RelatedActionsSection } from "@/components/layout/related-workspace-actions";
 
 export function DoctorPatientWorkspacePage({
   hospitalSlug,
@@ -65,7 +45,7 @@ export function DoctorPatientWorkspacePage({
   return (
     <main className="space-y-6">
       <WorkspacePageHeader
-        eyebrow="Doctor Patient Workspace"
+        eyebrow="Clinical Workspace"
         title={fullName(patient)}
         description="Review the active visit, move the encounter forward, order investigations, prescribe treatment, and decide whether the patient continues outpatient care or needs admission."
         actions={
@@ -118,12 +98,13 @@ export function DoctorPatientWorkspacePage({
 
       <div className="grid gap-6 lg:grid-cols-[1.45fr_.95fr]">
         <div className="space-y-6">
-          <PatientSummaryPanel
-            name={fullName(patient)}
-            patientNumber={patient?.patient_number}
-            subtitle={`${appointment?.visit_type ?? "outpatient"} visit`}
-            statusLabel={encounter ? encounterLabel(encounter.stage) : "new consultation"}
-            statusTone={encounterTone(encounter?.stage ?? null)}
+          {/* Shared Patient Context */}
+          <SharedPatientContext
+            hospitalSlug={hospitalSlug}
+            patient={patient}
+            appointment={appointment}
+            encounter={encounter}
+            showRelatedLinks={true}
             primaryItems={[
               { label: "Sex", value: patient?.sex },
               { label: "Phone", value: patient?.phone },
@@ -136,6 +117,16 @@ export function DoctorPatientWorkspacePage({
               { label: "Encounter Status", value: encounter?.status },
               { label: "Results Reviewed", value: formatDateTime(encounter?.results_reviewed_at) },
             ]}
+          />
+
+          {/* Related Actions */}
+          <RelatedActionsSection
+            hospitalSlug={hospitalSlug}
+            patientId={patient?.id}
+            encounterId={encounter?.id}
+            appointmentId={appointment?.id}
+            currentWorkspace="doctor"
+            title="Continue Care"
           />
 
           <section className="surface-panel p-4 sm:p-5">
@@ -294,6 +285,15 @@ export function DoctorPatientWorkspacePage({
         </div>
 
         <div className="space-y-6">
+          <RelatedActionsSection
+            hospitalSlug={hospitalSlug}
+            patientId={patient?.id}
+            encounterId={encounter?.id}
+            appointmentId={appointment?.id}
+            currentWorkspace="doctor"
+            title="Related Workspaces"
+          />
+
           <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Doctor Flow"

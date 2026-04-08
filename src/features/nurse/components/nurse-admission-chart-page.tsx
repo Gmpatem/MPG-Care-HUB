@@ -5,6 +5,14 @@ import { AddNurseNoteForm } from "@/features/nurse/components/add-nurse-note-for
 import { VitalsTimelineChart } from "@/features/nurse/components/vitals-timeline-chart";
 import { OpenAdmissionActivityButton } from "@/features/ward/components/open-admission-activity-button";
 import { DischargeChecklistPanel } from "@/features/ward/components/discharge-checklist-panel";
+import { TaskReadinessSummary } from "@/components/layout/task-readiness-summary";
+import {
+  SharedPatientContext,
+  fullName,
+  formatDateTime,
+} from "@/components/layout/shared-patient-context";
+import { RelatedActionsSection } from "@/components/layout/related-workspace-actions";
+import { getDischargeReadiness } from "@/lib/ui/task-state";
 
 type PatientInfo = {
   first_name: string;
@@ -30,6 +38,8 @@ type AdmissionInfo = {
   id: string;
   admitted_at: string;
   admission_reason: string | null;
+  discharge_requested?: boolean | null;
+  discharge_requested_at?: string | null;
   patient: PatientInfo;
   ward: WardInfo;
   bed: BedInfo;
@@ -61,14 +71,31 @@ type NoteInfo = {
   } | null;
 };
 
-function fullName(patient: PatientInfo) {
-  if (!patient) return "Unknown patient";
-  return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
-}
+function DischargeReadinessSummary({
+  admission,
+  checklist,
+}: {
+  admission: AdmissionInfo;
+  checklist: {
+    summary: {
+      total: number;
+      completed: number;
+      required_total: number;
+      required_completed: number;
+      ready: boolean;
+    };
+  };
+}) {
+  const signal = getDischargeReadiness(
+    checklist.summary.ready,
+    admission.discharge_requested ?? false,
+    checklist.summary.completed,
+    checklist.summary.total,
+    checklist.summary.required_completed,
+    checklist.summary.required_total
+  );
 
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
+  return <TaskReadinessSummary signal={signal} title="Discharge Status" />;
 }
 
 export function NurseAdmissionChartPage({
@@ -101,43 +128,56 @@ export function NurseAdmissionChartPage({
 }) {
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-xl border p-5">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Nurse Admission Chart</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{fullName(admission.patient)}</h1>
-          <p className="text-sm text-muted-foreground">
-            {admission.patient?.patient_number ?? "No patient number"} · Ward {admission.ward?.name ?? "—"} · Bed {admission.bed?.bed_number ?? "Unassigned"}
-          </p>
-        </div>
-
-        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-          <p>Admitted: {formatDateTime(admission.admitted_at)}</p>
-          <p>Doctor: {admission.admitting_doctor?.full_name ?? "Unknown"}</p>
-          <p>Phone: {admission.patient?.phone ?? "—"}</p>
-          <p>Reason: {admission.admission_reason ?? "—"}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
+      {/* Shared Patient Context Header */}
+      <SharedPatientContext
+        hospitalSlug={hospitalSlug}
+        patient={admission.patient}
+        admission={{
+          ...admission,
+          ward: admission.ward ? { name: admission.ward.name } : null,
+          bed: admission.bed ? { bed_number: admission.bed.bed_number } : null,
+          admitting_doctor: admission.admitting_doctor ? { full_name: admission.admitting_doctor.full_name } : null,
+        }}
+        showRelatedLinks={true}
+        primaryItems={[
+          { label: "Admitted", value: formatDateTime(admission.admitted_at) },
+          { label: "Ward", value: admission.ward?.name },
+          { label: "Bed", value: admission.bed?.bed_number },
+          { label: "Doctor", value: admission.admitting_doctor?.full_name },
+        ]}
+        secondaryItems={[
+          { label: "Phone", value: admission.patient?.phone },
+          { label: "Reason", value: admission.admission_reason },
+          { label: "Discharge Requested", value: admission.discharge_requested ? "Yes" : "No" },
+        ]}
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
             <Link href={`/h/${hospitalSlug}/nurse`}>Back to Nurse Dashboard</Link>
           </Button>
-
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm">
             <Link href={`/h/${hospitalSlug}/ward/admissions/${admission.id}`}>Open Ward Chart</Link>
           </Button>
-
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
-          </Button>
-
           <OpenAdmissionActivityButton
             hospitalSlug={hospitalSlug}
             admissionId={admission.id}
             variant="outline"
-            size="default"
+            size="sm"
           />
         </div>
-      </div>
+      </SharedPatientContext>
+
+      {/* Related Actions */}
+      <RelatedActionsSection
+        hospitalSlug={hospitalSlug}
+        patientId={admission.patient?.patient_number ? admission.patient?.patient_number : undefined}
+        admissionId={admission.id}
+        currentWorkspace="nurse"
+        title="Continue Care"
+      />
+
+      {/* Discharge Readiness Summary */}
+      <DischargeReadinessSummary admission={admission} checklist={checklist} />
 
       <DischargeChecklistPanel
         hospitalSlug={hospitalSlug}

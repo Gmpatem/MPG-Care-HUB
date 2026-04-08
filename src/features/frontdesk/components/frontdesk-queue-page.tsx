@@ -1,12 +1,18 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ClipboardList, UserPlus, Users } from "lucide-react";
 
-import { StatusBadge } from "@/components/layout/status-badge";
+import { QueueItemCard } from "@/components/layout/queue-item-card";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { ListFilterBar } from "@/components/layout/list-filter-bar";
+import { SavedViewTabs } from "@/components/layout/saved-view-tabs";
 import { Button } from "@/components/ui/button";
+import { getQueueItemReadiness } from "@/lib/ui/task-state";
 
 function fullName(row: any) {
   return [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" ");
@@ -30,6 +36,50 @@ function statusTone(status: string | null) {
   }
 }
 
+function FrontdeskQueueItem({
+  hospitalSlug,
+  row,
+}: {
+  hospitalSlug: string;
+  row: any;
+}) {
+  const readiness = getQueueItemReadiness(row.status);
+
+  const badges = [];
+  if (row.visit_type) {
+    badges.push({ label: row.visit_type, tone: "neutral" as const });
+  }
+
+  return (
+    <QueueItemCard
+      id={row.appointment_id}
+      title={fullName(row) || "Unknown patient"}
+      subtitle={`${row.patient_number ?? "No patient number"} · Queue #${row.queue_number ?? "—"}`}
+      readiness={readiness}
+      badges={badges}
+      meta={[
+        { label: "Scheduled", value: formatDateTime(row.scheduled_at) },
+        { label: "Check-in", value: formatDateTime(row.check_in_at) },
+        { label: "Doctor", value: row.staff_name ?? "Unassigned" },
+        { label: "Reason", value: row.reason ?? "—" },
+      ]}
+      actions={{
+        primary: {
+          label: "Open Visit",
+          href: `/h/${hospitalSlug}/doctor/appointments/${row.appointment_id}/open`,
+        },
+        secondary: [
+          {
+            label: "Patients",
+            href: `/h/${hospitalSlug}/patients`,
+            variant: "outline",
+          },
+        ],
+      }}
+    />
+  );
+}
+
 export function FrontdeskQueuePage({
   hospitalSlug,
   hospitalName,
@@ -39,9 +89,63 @@ export function FrontdeskQueuePage({
   hospitalName: string;
   rows: any[];
 }) {
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [activeView, setActiveView] = useState("all");
+
+  // Apply view preset
+  const effectiveStatusFilter = activeView !== "all" ? activeView : statusFilter;
+
+  // Filter rows
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      // Search filter
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        searchQuery === "" ||
+        row.first_name?.toLowerCase().includes(searchLower) ||
+        row.last_name?.toLowerCase().includes(searchLower) ||
+        row.patient_number?.toLowerCase().includes(searchLower) ||
+        row.staff_name?.toLowerCase().includes(searchLower);
+
+      // Status filter
+      const matchesStatus =
+        effectiveStatusFilter === "all" ||
+        row.status === effectiveStatusFilter ||
+        (effectiveStatusFilter === "unassigned" && !row.staff_name);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [rows, searchQuery, effectiveStatusFilter]);
+
   const checkedInCount = rows.filter((row) => row.status === "checked_in").length;
   const scheduledCount = rows.filter((row) => row.status === "scheduled").length;
   const unassignedCount = rows.filter((row) => !row.staff_name).length;
+
+  // View tabs
+  const views = [
+    { id: "all", label: "All", count: rows.length },
+    { id: "checked_in", label: "Checked In", count: checkedInCount },
+    { id: "scheduled", label: "Scheduled", count: scheduledCount },
+    { id: "unassigned", label: "Unassigned", count: unassignedCount },
+  ];
+
+  // Status options
+  const statusOptions = [
+    { label: "Checked In", value: "checked_in" },
+    { label: "Scheduled", value: "scheduled" },
+    { label: "Unassigned", value: "unassigned" },
+  ];
+
+  // Reset
+  const handleReset = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setActiveView("all");
+  };
+
+  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || activeView !== "all";
 
   return (
     <main className="space-y-6">
@@ -99,6 +203,36 @@ export function FrontdeskQueuePage({
           }
         />
 
+        {/* Quick Views */}
+        <SavedViewTabs
+          views={views}
+          activeView={activeView}
+          onViewChange={(viewId) => {
+            setActiveView(viewId);
+            if (viewId !== "all") {
+              setStatusFilter("all");
+            }
+          }}
+          variant="pills"
+        />
+
+        {/* Filter Bar */}
+        <ListFilterBar
+          searchValue={searchQuery}
+          searchPlaceholder="Search by patient name, ID, or doctor..."
+          onSearchChange={setSearchQuery}
+          statusOptions={statusOptions}
+          statusValue={statusFilter}
+          onStatusChange={(value) => {
+            setStatusFilter(value);
+            setActiveView("all");
+          }}
+          hasActiveFilters={hasActiveFilters}
+          onReset={handleReset}
+          resultCount={filteredRows.length}
+          resultLabel="patients"
+        />
+
         {rows.length === 0 ? (
           <div className="mt-4">
             <WorkspaceEmptyState
@@ -106,62 +240,27 @@ export function FrontdeskQueuePage({
               description="Scheduled and checked-in visits will appear here automatically as front desk activity begins."
             />
           </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="mt-4">
+            <WorkspaceEmptyState
+              variant="search"
+              title="No matching patients"
+              description="Try adjusting your search or filter criteria."
+              action={
+                <Button variant="outline" onClick={handleReset}>
+                  Clear filters
+                </Button>
+              }
+            />
+          </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {rows.map((row) => (
-              <div
+            {filteredRows.map((row) => (
+              <FrontdeskQueueItem
                 key={row.appointment_id}
-                className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
-              >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="min-w-0 space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-base font-semibold text-foreground">
-                        {fullName(row) || "Unknown patient"}
-                      </p>
-
-                      <StatusBadge
-                        label={row.status ?? "scheduled"}
-                        tone={statusTone(row.status)}
-                        className="px-2.5 py-1 capitalize font-medium"
-                      />
-
-                      {row.visit_type ? (
-                        <StatusBadge
-                          label={row.visit_type}
-                          tone="neutral"
-                          className="px-2.5 py-1 capitalize font-medium"
-                        />
-                      ) : null}
-                    </div>
-
-                    <p className="text-sm text-muted-foreground">
-                      {row.patient_number ?? "No patient number"} · Queue #{row.queue_number ?? "—"}
-                    </p>
-
-                    <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                      <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
-                      <p>Check-in: {formatDateTime(row.check_in_at)}</p>
-                      <p>Doctor: {row.staff_name ?? "Unassigned"}</p>
-                      <p>Reason: {row.reason ?? "—"}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/h/${hospitalSlug}/patients`}>
-                        Patient Directory
-                      </Link>
-                    </Button>
-
-                    <Button asChild size="sm">
-                      <Link href={`/h/${hospitalSlug}/doctor/appointments/${row.appointment_id}/open`}>
-                        Open Visit
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                hospitalSlug={hospitalSlug}
+                row={row}
+              />
             ))}
           </div>
         )}

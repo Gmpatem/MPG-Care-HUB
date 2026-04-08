@@ -6,10 +6,14 @@ import {
   Stethoscope,
   UserRound,
   Users,
+  DoorOpen,
+  Clock,
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/layout/status-badge";
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
+import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { WorkspacePageShell } from "@/components/layout/workspace-page-shell";
 import { Button } from "@/components/ui/button";
 
 function statusTone(status: string) {
@@ -101,8 +105,10 @@ export function HospitalCommandDashboard({
     staff_id: string | null;
   }>;
 }) {
+  const capacityPct = stats.total_beds > 0 ? Math.round((stats.occupied_beds / stats.total_beds) * 100) : 0;
+
   return (
-    <main className="space-y-6">
+    <WorkspacePageShell>
       <section className="hero-mesh rounded-[1.6rem] p-[1px] shadow-[0_24px_70px_rgba(11,42,74,0.10)]">
         <div className="rounded-[1.52rem] bg-white/92 p-5 dark:bg-[#101c2c]/88 sm:p-6">
           <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
@@ -138,42 +144,86 @@ export function HospitalCommandDashboard({
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      {/* KPI Summary Strip - Hospital-wide operational metrics */}
+      <KpiSummaryStrip columns={4}>
+        <KpiCard
+          title="Occupancy"
+          value={`${capacityPct}%`}
+          description={capacityPct > 90 
+            ? "Near capacity — expedite discharges"
+            : capacityPct > 70 
+              ? "High occupancy — monitor availability"
+              : "Healthy occupancy level"}
+          icon={<BedDouble className="h-4 w-4" />}
+          tone={capacityPct > 90 ? "warning" : capacityPct > 70 ? "info" : "neutral"}
+          action={{ label: "View Ward", href: `/h/${hospitalSlug}/ward` }}
+        />
+        <KpiCard
+          title="Available Beds"
+          value={stats.available_beds}
+          description={stats.available_beds > 0 
+            ? "Beds ready for new admissions"
+            : "No beds available — at capacity"}
+          icon={<Users className="h-4 w-4" />}
+          tone={stats.available_beds === 0 ? "danger" : stats.available_beds < 5 ? "warning" : "success"}
+          action={{ label: "Bed Map", href: `/h/${hospitalSlug}/ward/beds` }}
+        />
+        <KpiCard
+          title="Discharges Ready"
+          value={stats.discharge_requested}
+          description={stats.discharge_requested > 0 
+            ? "Patients waiting for discharge processing"
+            : "No discharge requests pending"}
+          icon={<DoorOpen className="h-4 w-4" />}
+          tone={stats.discharge_requested > 0 ? "success" : "neutral"}
+          action={{ label: "Process", href: `/h/${hospitalSlug}/ward/discharges` }}
+        />
+        <KpiCard
+          title="Today&apos;s Queue"
+          value={stats.todays_queue}
+          description={stats.todays_queue > 0 
+            ? "Appointments moving through intake"
+            : "No patients in queue"}
+          icon={<Clock className="h-4 w-4" />}
+          tone={stats.todays_queue > 10 ? "warning" : stats.todays_queue > 0 ? "info" : "neutral"}
+          action={{ label: "View Queue", href: `/h/${hospitalSlug}/frontdesk/queue` }}
+        />
+      </KpiSummaryStrip>
+
+      {/* Secondary metrics row */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <WorkspaceStatCard
           title="Active Admissions"
           value={stats.active_admissions}
           description="Current inpatient ward load"
           icon={<BedDouble className="h-4 w-4" />}
+          tone="neutral"
+          action={{ label: "View Admissions", href: `/h/${hospitalSlug}/ward/admissions` }}
         />
         <WorkspaceStatCard
           title="Discharged Today"
           value={stats.discharged_today}
           description="Completed discharge activity today"
           icon={<ClipboardCheck className="h-4 w-4" />}
+          tone={stats.discharged_today > 0 ? "success" : "neutral"}
         />
         <WorkspaceStatCard
-          title="Bed Utilization"
-          value={`${stats.total_beds > 0 ? Math.round((stats.occupied_beds / stats.total_beds) * 100) : 0}%`}
-          description={`${stats.occupied_beds} occupied of ${stats.total_beds} total beds`}
-          icon={<Activity className="h-4 w-4" />}
+          title="Nurse Attention"
+          value={nurseWorkload.overdue_vitals + nurseWorkload.missing_vitals}
+          description={(nurseWorkload.overdue_vitals + nurseWorkload.missing_vitals) > 0
+            ? `${nurseWorkload.overdue_vitals} overdue, ${nurseWorkload.missing_vitals} missing vitals`
+            : "All vitals up to date"}
+          icon={<UserRound className="h-4 w-4" />}
+          tone={(nurseWorkload.overdue_vitals + nurseWorkload.missing_vitals) > 0 ? "warning" : "success"}
+          action={{ label: "Nurse Station", href: `/h/${hospitalSlug}/nurse` }}
         />
         <WorkspaceStatCard
-          title="Available Beds"
-          value={stats.available_beds}
-          description="Beds ready for new admissions"
-          icon={<Users className="h-4 w-4" />}
-        />
-        <WorkspaceStatCard
-          title="Discharge Requested"
-          value={stats.discharge_requested}
-          description="Cases needing discharge handling"
-          icon={<ClipboardCheck className="h-4 w-4" />}
-        />
-        <WorkspaceStatCard
-          title="Today’s Queue"
-          value={stats.todays_queue}
-          description="Appointments moving through intake"
-          icon={<Users className="h-4 w-4" />}
+          title="Doctor Load"
+          value={doctorWorkload.reduce((acc, d) => acc + d.total_load, 0)}
+          description={`${doctorWorkload.length} doctors with active patients`}
+          icon={<Stethoscope className="h-4 w-4" />}
+          tone="neutral"
+          action={{ label: "Doctor Workspace", href: `/h/${hospitalSlug}/doctor` }}
         />
       </div>
 
@@ -249,24 +299,28 @@ export function HospitalCommandDashboard({
               value={nurseWorkload.discharge_requested}
               description="Admissions awaiting ward-side discharge handling"
               icon={<ClipboardCheck className="h-4 w-4" />}
+              tone={nurseWorkload.discharge_requested > 0 ? "success" : "neutral"}
             />
             <WorkspaceStatCard
               title="Overdue Vitals"
               value={nurseWorkload.overdue_vitals}
               description="Patients already past scheduled vital checks"
               icon={<UserRound className="h-4 w-4" />}
+              tone={nurseWorkload.overdue_vitals > 0 ? "danger" : "neutral"}
             />
             <WorkspaceStatCard
               title="Missing Vitals"
               value={nurseWorkload.missing_vitals}
               description="Admissions without expected vital entries"
               icon={<UserRound className="h-4 w-4" />}
+              tone={nurseWorkload.missing_vitals > 0 ? "warning" : "neutral"}
             />
             <WorkspaceStatCard
               title="Due Soon"
               value={nurseWorkload.due_vitals}
               description="Vital checks approaching soon"
               icon={<Activity className="h-4 w-4" />}
+              tone={nurseWorkload.due_vitals > 0 ? "info" : "neutral"}
             />
           </div>
         </PanelShell>
@@ -322,7 +376,7 @@ export function HospitalCommandDashboard({
 
         <PanelShell
           title="Front Desk Queue Snapshot"
-          description="Today’s first queued appointments."
+          description="Today's first queued appointments."
           action={
             <Button asChild size="sm" variant="outline">
               <Link href={`/h/${hospitalSlug}/frontdesk/queue`}>Open Front Desk Queue</Link>
@@ -361,6 +415,6 @@ export function HospitalCommandDashboard({
           )}
         </PanelShell>
       </div>
-    </main>
+    </WorkspacePageShell>
   );
 }

@@ -2,7 +2,13 @@
 
 import { useActionState } from "react";
 import { createAdmissionTransfer, type CreateAdmissionTransferState } from "@/features/ward/actions/create-admission-transfer";
-import { Button } from "@/components/ui/button";
+import {
+  FormSection,
+  FormField,
+  FormActionsBar,
+  FormFeedback,
+} from "@/components/forms/form-section";
+import { SubmitButton } from "@/components/forms/submit-button";
 
 const initialState: CreateAdmissionTransferState = {};
 
@@ -23,63 +29,73 @@ export function AdmissionTransferForm({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="space-y-4 rounded-xl border p-5">
+    <form action={formAction} className="space-y-5 rounded-xl border p-4 sm:p-5">
       <div>
         <h2 className="text-lg font-semibold">Transfer Patient</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Move this admission to another ward or bed when the hospital workflow allows it.
         </p>
       </div>
 
-      {state.message ? (
-        <div className={`rounded-md px-3 py-2 text-sm ${
-          state.success
-            ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-            : "border border-red-200 bg-red-50 text-red-700"
-        }`}>
-          {state.message}
-        </div>
-      ) : null}
+      {state.message && (
+        <FormFeedback
+          type={state.success ? "success" : "error"}
+          message={state.message}
+        />
+      )}
 
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Destination Ward</span>
-        <select name="to_ward_id" defaultValue="" className="h-11 rounded-md border bg-background px-3 text-sm">
-          <option value="">Select ward</option>
-          {wards
-            .filter((ward) => ward.id !== currentWardId)
-            .map((ward) => (
-              <option key={ward.id} value={ward.id}>
-                {ward.name} {ward.code ? `(${ward.code})` : ""}
+      <FormSection>
+        <FormField label="Destination Ward" name="to_ward_id" required>
+          <select
+            name="to_ward_id"
+            defaultValue=""
+            required
+            className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">Select ward</option>
+            {wards
+              .filter((ward) => ward.id !== currentWardId)
+              .map((ward) => (
+                <option key={ward.id} value={ward.id}>
+                  {ward.name} {ward.code ? `(${ward.code})` : ""}
+                </option>
+              ))}
+          </select>
+        </FormField>
+
+        <FormField label="Destination Bed" name="to_bed_id" optional>
+          <select
+            name="to_bed_id"
+            defaultValue=""
+            className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">No bed / assign later</option>
+            {beds.map((bed) => (
+              <option key={bed.id} value={bed.id}>
+                {bed.bed_number}
               </option>
             ))}
-        </select>
-      </label>
+          </select>
+        </FormField>
 
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Destination Bed</span>
-        <select name="to_bed_id" defaultValue="" className="h-11 rounded-md border bg-background px-3 text-sm">
-          <option value="">No bed / assign later</option>
-          {beds.map((bed) => (
-            <option key={bed.id} value={bed.id}>
-              {bed.bed_number}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Transfer Reason</span>
-        <textarea
+        <FormField
+          label="Transfer Reason"
           name="transfer_reason"
-          rows={3}
-          className="rounded-md border bg-background px-3 py-2 text-sm"
-          placeholder="Why is the patient being moved?"
-        />
-      </label>
+          optional
+          helper="Explain why the patient is being moved"
+        >
+          <textarea
+            name="transfer_reason"
+            rows={3}
+            className="rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            placeholder="e.g., Patient requires specialized care available in destination ward"
+          />
+        </FormField>
+      </FormSection>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Transferring..." : "Record Transfer"}
-      </Button>
+      <FormActionsBar>
+        <SubmitButton pendingText="Transferring...">Record Transfer</SubmitButton>
+      </FormActionsBar>
     </form>
   );
 }

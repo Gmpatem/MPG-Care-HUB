@@ -4,39 +4,20 @@ import { useActionState } from "react";
 import { createFrontdeskPatient } from "@/features/frontdesk/actions/create-frontdesk-patient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  FormSection,
+  FormGrid,
+  FormField,
+  FormActionsBar,
+  FormFeedback,
+} from "@/components/forms/form-section";
+import { SubmitButton } from "@/components/forms/submit-button";
 
 type FormState = {
   error?: string;
 };
 
 const initialState: FormState = {};
-
-function Field({
-  label,
-  name,
-  type = "text",
-  required = false,
-  placeholder,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <label className="grid gap-2 text-sm">
-      <span className="font-medium">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required={required}
-        placeholder={placeholder}
-        className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-      />
-    </label>
-  );
-}
 
 export function FrontdeskPatientForm({
   hospitalSlug,
@@ -58,65 +39,135 @@ export function FrontdeskPatientForm({
 
         <CardContent className="py-5">
           <form action={formAction} className="space-y-6">
-            {state?.error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {state.error}
-              </div>
-            ) : null}
+            {state?.error && (
+              <FormFeedback type="error" message={state.error} />
+            )}
 
-            <section className="grid gap-4 md:grid-cols-2">
-              <Field label="First Name" name="first_name" required />
-              <Field label="Middle Name" name="middle_name" />
-              <Field label="Last Name" name="last_name" required />
+            {/* Primary Identity Section */}
+            <FormSection
+              title="Patient Identity"
+              description="Required information to identify the patient"
+            >
+              <FormGrid>
+                <FormField label="First Name" name="first_name" required>
+                  <input
+                    name="first_name"
+                    type="text"
+                    required
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField label="Middle Name" name="middle_name" optional>
+                  <input
+                    name="middle_name"
+                    type="text"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField label="Last Name" name="last_name" required>
+                  <input
+                    name="last_name"
+                    type="text"
+                    required
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField label="Sex" name="sex">
+                  <select
+                    name="sex"
+                    defaultValue="unknown"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="unknown">Unknown</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-              <label className="grid gap-2 text-sm">
-                <span className="font-medium">Sex</span>
-                <select
-                  name="sex"
-                  defaultValue="unknown"
-                  className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            {/* Contact Information Section */}
+            <FormSection
+              title="Contact Information"
+              description="How to reach the patient"
+            >
+              <FormGrid>
+                <FormField label="Date of Birth" name="date_of_birth" optional>
+                  <input
+                    name="date_of_birth"
+                    type="date"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField label="Phone" name="phone" optional>
+                  <input
+                    name="phone"
+                    type="tel"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField
+                  label="Email"
+                  name="email"
+                  optional
+                  className="md:col-span-2"
                 >
-                  <option value="unknown">Unknown</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-
-              <Field label="Date of Birth" name="date_of_birth" type="date" />
-              <Field label="Phone" name="phone" />
-              <Field label="Email" name="email" type="email" />
-
-              <label className="grid gap-2 text-sm md:col-span-2">
-                <span className="font-medium">Address</span>
-                <textarea
+                  <input
+                    name="email"
+                    type="email"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField
+                  label="Address"
                   name="address_text"
-                  rows={3}
-                  className="rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="Street, area, city"
-                />
-              </label>
-            </section>
+                  optional
+                  className="md:col-span-2"
+                >
+                  <textarea
+                    name="address_text"
+                    rows={3}
+                    className="rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Street, area, city"
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-base font-semibold">Emergency Contact</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Add only what front desk needs right now.
-                </p>
-              </div>
+            {/* Emergency Contact Section */}
+            <FormSection
+              title="Emergency Contact"
+              description="Add only what front desk needs right now"
+              variant="subtle"
+            >
+              <FormGrid>
+                <FormField label="Contact Name" name="emergency_contact_name" optional>
+                  <input
+                    name="emergency_contact_name"
+                    type="text"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+                <FormField label="Contact Phone" name="emergency_contact_phone" optional>
+                  <input
+                    name="emergency_contact_phone"
+                    type="tel"
+                    className="h-11 rounded-md border bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Contact Name" name="emergency_contact_name" />
-                <Field label="Contact Phone" name="emergency_contact_phone" />
-              </div>
-            </section>
-
-            <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={pending}>
-                {pending ? "Saving..." : "Save and Continue to Visit"}
+            {/* Actions */}
+            <FormActionsBar bordered>
+              <SubmitButton pendingText="Saving patient...">
+                Save and Continue to Visit
+              </SubmitButton>
+              <Button type="button" variant="outline" asChild>
+                <a href={`/h/${hospitalSlug}/frontdesk`}>Cancel</a>
               </Button>
-            </div>
+            </FormActionsBar>
           </form>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 
 type NurseDashboardData = {
   hospital: {
@@ -160,8 +161,12 @@ export function NurseDashboard({ data }: { data: NurseDashboardData }) {
               </div>
             ))
           ) : (
-            <div className="p-6 text-sm text-muted-foreground">
-              No admitted patients found.
+            <div className="p-6">
+              <WorkspaceEmptyState
+                variant="default"
+                title="No admitted patients"
+                description="Admitted patients will appear here when doctors request admission. Use the Ward workspace to manage bed assignments and view the full census."
+              />
             </div>
           )}
         </div>

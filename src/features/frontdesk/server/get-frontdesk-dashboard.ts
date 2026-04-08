@@ -7,6 +7,14 @@ type HospitalRow = {
   slug: string;
 };
 
+type StaffRow = {
+  id: string;
+  full_name: string;
+  job_title: string | null;
+  staff_type: string | null;
+  active: boolean;
+};
+
 export async function getFrontdeskDashboard(hospitalSlug: string) {
   const supabase = await createClient();
 
@@ -25,10 +33,11 @@ export async function getFrontdeskDashboard(hospitalSlug: string) {
       hospital: null,
       summary: null as FrontdeskSummary | null,
       queueRows: [] as FrontdeskQueueRow[],
+      staff: [] as StaffRow[],
     };
   }
 
-  const [summaryResult, queueResult] = await Promise.all([
+  const [summaryResult, queueResult, staffResult] = await Promise.all([
     supabase
       .from("daily_operational_summary_v")
       .select("*")
@@ -59,6 +68,13 @@ export async function getFrontdeskDashboard(hospitalSlug: string) {
       .eq("hospital_id", hospital.id)
       .limit(10)
       .returns<FrontdeskQueueRow[]>(),
+    supabase
+      .from("staff")
+      .select("id, full_name, job_title, staff_type, active")
+      .eq("hospital_id", hospital.id)
+      .eq("active", true)
+      .order("full_name")
+      .returns<StaffRow[]>(),
   ]);
 
   if (summaryResult.error) {
@@ -69,9 +85,14 @@ export async function getFrontdeskDashboard(hospitalSlug: string) {
     throw new Error(queueResult.error.message);
   }
 
+  if (staffResult.error) {
+    throw new Error(staffResult.error.message);
+  }
+
   return {
     hospital,
     summary: summaryResult.data ?? null,
     queueRows: queueResult.data ?? [],
+    staff: staffResult.data ?? [],
   };
 }

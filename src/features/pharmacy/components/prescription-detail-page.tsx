@@ -6,30 +6,113 @@ import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-he
 import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { InfoGrid } from "@/components/layout/info-grid";
-import { PatientSummaryPanel } from "@/components/layout/patient-summary-panel";
 import { StatusBadge } from "@/components/layout/status-badge";
+import { TaskReadinessSummary } from "@/components/layout/task-readiness-summary";
+import { TimelineFeed, type TimelineEvent } from "@/components/layout/timeline-feed";
 import { Button } from "@/components/ui/button";
+import {
+  SharedPatientContext,
+  fullName,
+  formatDateTime,
+} from "@/components/layout/shared-patient-context";
+import { RelatedActionsSection } from "@/components/layout/related-workspace-actions";
+import { PatientJourneyStrip } from "@/components/layout/patient-journey-strip";
+import { getPrescriptionReadiness, getPrescriptionItemReadiness } from "@/lib/ui/task-state";
 
-function fullName(patient: any) {
-  if (!patient) return "Unknown patient";
-  return [patient.first_name, patient.middle_name, patient.last_name].filter(Boolean).join(" ");
+function itemTone(item: { status?: string | null; has_stock?: boolean }) {
+  const signal = getPrescriptionItemReadiness(item.status, item.has_stock);
+  return signal.tone;
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
+function itemLabel(item: { status?: string | null; has_stock?: boolean }) {
+  const signal = getPrescriptionItemReadiness(item.status, item.has_stock);
+  return signal.label;
 }
 
-function itemTone(item: any) {
-  if (item.status === "dispensed") return "success" as const;
-  if (item.has_stock === false) return "danger" as const;
-  if (item.status === "partially_dispensed") return "warning" as const;
-  return "neutral" as const;
+function PrescriptionReadinessSummary({
+  prescription,
+  items,
+}: {
+  prescription: { status?: string | null };
+  items: Array<{ has_stock?: boolean; status?: string | null }>;
+}) {
+  const readyCount = items.filter((item) => item.has_stock !== false).length;
+  const blockedCount = items.filter((item) => item.has_stock === false).length;
+  const dispensedCount = items.filter((item) => item.status === "dispensed").length;
+
+  const signal = getPrescriptionReadiness(
+    prescription?.status,
+    readyCount,
+    blockedCount,
+    dispensedCount,
+    items.length
+  );
+
+  return <TaskReadinessSummary signal={signal} title="Prescription Status" />;
 }
 
-function itemLabel(item: any) {
-  if (item.has_stock === false) return "no stock";
-  return item.status?.replaceAll("_", " ") ?? "pending";
+function generatePrescriptionTimeline(
+  prescription: {
+    id: string;
+    status?: string | null;
+    prescribed_at?: string | null;
+    prescribed_by_staff?: { full_name?: string | null } | null;
+  },
+  dispensations: Array<{
+    id: string;
+    status?: string | null;
+    dispensed_at?: string | null;
+    dispensed_by_staff?: { full_name?: string | null } | null;
+    dispensation_items?: Array<{
+      prescription_item_id?: string;
+      quantity_dispensed?: number;
+    }>;
+  }>
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  // Prescription created
+  if (prescription.prescribed_at) {
+    events.push({
+      id: `prescription-created-${prescription.id}`,
+      type: "prescription",
+      title: "Prescription created",
+      actor: prescription.prescribed_by_staff?.full_name
+        ? { name: prescription.prescribed_by_staff.full_name, role: "Prescribing Physician" }
+        : undefined,
+      timestamp: prescription.prescribed_at,
+    });
+  }
+
+  // Dispensation events
+  dispensations.forEach((dispensation) => {
+    if (dispensation.dispensed_at) {
+      const itemCount = dispensation.dispensation_items?.length ?? 0;
+      const totalQty = dispensation.dispensation_items?.reduce(
+        (sum, item) => sum + (item.quantity_dispensed ?? 0),
+        0
+      ) ?? 0;
+
+      events.push({
+        id: `dispensation-${dispensation.id}`,
+        type: "dispensation",
+        title: "Medication dispensed",
+        description: `${itemCount} item${itemCount !== 1 ? "s" : ""} · ${totalQty} unit${totalQty !== 1 ? "s" : ""}`,
+        actor: dispensation.dispensed_by_staff?.full_name
+          ? { name: dispensation.dispensed_by_staff.full_name, role: "Pharmacist" }
+          : undefined,
+        timestamp: dispensation.dispensed_at,
+        status: dispensation.status === "completed"
+          ? { label: "Completed", tone: "success" }
+          : dispensation.status === "partial"
+          ? { label: "Partial", tone: "warning" }
+          : undefined,
+      });
+    }
+  });
+
+  // Sort by timestamp
+  return events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 }
 
 export function PrescriptionDetailPage({
@@ -39,30 +122,149 @@ export function PrescriptionDetailPage({
   dispensations,
 }: {
   hospitalSlug: string;
-  prescription: any;
-  items: any[];
-  dispensations: any[];
+  prescription: {
+    id: string;
+    status?: string | null;
+    notes?: string | null;
+    prescribed_at?: string | null;
+    encounter_id?: string | null;
+    patient?: {
+      id?: string;
+      patient_number?: string | null;
+      first_name?: string;
+      middle_name?: string | null;
+      last_name?: string;
+      sex?: string | null;
+      phone?: string | null;
+    } | null;
+    prescribed_by_staff?: {
+      id?: string;
+      full_name?: string | null;
+    } | null;
+    encounter?: unknown;
+  };
+  items: Array<{
+    id: string;
+    medication_name: string;
+    dose?: string | null;
+    frequency?: string | null;
+    duration?: string | null;
+    route?: string | null;
+    quantity_prescribed?: number | null;
+    quantity_dispensed?: number | null;
+    available_stock?: number | null;
+    status?: string | null;
+    instructions?: string | null;
+    has_stock?: boolean;
+  }>;
+  dispensations: Array<{
+    id: string;
+    status?: string | null;
+    dispensed_at?: string | null;
+    dispensed_by_staff?: { full_name?: string | null } | null;
+    dispensation_items?: Array<{
+      prescription_item_id?: string;
+      quantity_dispensed?: number;
+    }>;
+  }>;
 }) {
-  const readyCount = items.filter((item: any) => item.has_stock !== false).length;
-  const blockedCount = items.filter((item: any) => item.has_stock === false).length;
-  const dispensedCount = items.filter((item: any) => item.status === "dispensed").length;
-  const pendingCount = items.filter((item: any) => item.status !== "dispensed").length;
+  const readyCount = items.filter((item) => item.has_stock !== false).length;
+  const blockedCount = items.filter((item) => item.has_stock === false).length;
+  const dispensedCount = items.filter((item) => item.status === "dispensed").length;
+  const pendingCount = items.filter((item) => item.status !== "dispensed").length;
+
+  const timelineEvents = generatePrescriptionTimeline(prescription, dispensations);
+
+  const patientName = prescription?.patient?.first_name && prescription?.patient?.last_name
+    ? fullName({
+        first_name: prescription.patient.first_name,
+        middle_name: prescription.patient.middle_name,
+        last_name: prescription.patient.last_name,
+      })
+    : "Unknown patient";
+
+  const patientForContext = prescription?.patient?.first_name && prescription?.patient?.last_name
+    ? {
+        id: prescription.patient.id,
+        first_name: prescription.patient.first_name,
+        middle_name: prescription.patient.middle_name,
+        last_name: prescription.patient.last_name,
+        patient_number: prescription.patient.patient_number,
+        sex: prescription.patient.sex,
+        phone: prescription.patient.phone,
+      }
+    : null;
+
+  const prescriptionMeta = (
+    <>
+      <StatusBadge 
+        label={prescription?.status?.replaceAll("_", " ") ?? "pending"} 
+        tone={prescription?.status === "dispensed" ? "success" : prescription?.status === "partial" ? "warning" : "info"}
+        className="text-xs capitalize"
+      />
+      <span className="text-muted-foreground">·</span>
+      <span className="text-sm text-muted-foreground">
+        {items.length} items
+      </span>
+      {blockedCount > 0 && (
+        <>
+          <span className="text-muted-foreground">·</span>
+          <StatusBadge label={`${blockedCount} blocked`} tone="warning" className="text-xs" />
+        </>
+      )}
+    </>
+  );
 
   return (
     <main className="space-y-6">
       <WorkspacePageHeader
-        eyebrow="Prescription Dispensing"
-        title={fullName(prescription?.patient)}
+        eyebrow="Prescription"
+        title={patientName}
         description="Review the full prescription, confirm item availability, and dispense medication safely without losing visibility into blocked or partial items."
-        actions={
-          <>
+        meta={prescriptionMeta}
+        backLink={{ href: `/h/${hospitalSlug}/pharmacy`, label: "Back to Pharmacy" }}
+        primaryAction={
+          pendingCount > 0 ? (
             <Button asChild>
-              <Link href={`/h/${hospitalSlug}/pharmacy`}>Back to Pharmacy Queue</Link>
+              <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}/dispense`}>
+                Dispense
+              </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
-            </Button>
-          </>
+          ) : undefined
+        }
+        secondaryActions={
+          <Button asChild variant="outline">
+            <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
+          </Button>
+        }
+        compact
+      />
+
+      {/* Patient Journey Context */}
+      <PatientJourneyStrip
+        hospitalSlug={hospitalSlug}
+        stages={[
+          { stage: "intake", status: "complete" },
+          { stage: "checkin", status: "complete" },
+          { stage: "doctor", status: "complete" },
+          { stage: "lab", status: "optional" },
+          { stage: "pharmacy", status: prescription?.status === "dispensed" ? "complete" : "active" },
+          { stage: "billing", status: "waiting" },
+          { stage: "discharge", status: "skipped" },
+        ]}
+        currentInterpretation={prescription?.status === "dispensed"
+          ? "Medication dispensed. Patient can proceed to billing."
+          : blockedCount > 0
+            ? `${blockedCount} item${blockedCount === 1 ? "" : "s"} blocked by stock shortage.`
+            : "Prescription ready for dispensing."
+        }
+        nextStep={prescription?.status === "dispensed"
+          ? "Billing will finalize payment for dispensed medications."
+          : blockedCount > 0
+            ? "Resolve stock issues or order alternative medications."
+            : pendingCount > 0
+              ? `Dispense ${pendingCount} remaining item${pendingCount === 1 ? "" : "s"}.`
+              : "All items dispensed - proceed to billing."
         }
       />
 
@@ -95,12 +297,15 @@ export function PrescriptionDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1.45fr_.95fr]">
         <div className="space-y-6">
-          <PatientSummaryPanel
-            name={fullName(prescription?.patient)}
-            patientNumber={prescription?.patient?.patient_number}
-            subtitle={`Received ${formatDateTime(prescription?.prescribed_at)}`}
-            statusLabel={prescription?.status?.replaceAll("_", " ") ?? "active"}
-            statusTone={prescription?.status === "dispensed" ? "success" : prescription?.status === "partially_dispensed" ? "warning" : "info"}
+          {/* Prescription Readiness Summary */}
+          <PrescriptionReadinessSummary prescription={prescription} items={items} />
+
+          {/* Shared Patient Context */}
+          <SharedPatientContext
+            hospitalSlug={hospitalSlug}
+            patient={patientForContext}
+            prescription={prescription}
+            showRelatedLinks={true}
             primaryItems={[
               { label: "Phone", value: prescription?.patient?.phone },
               { label: "Prescriber", value: prescription?.prescribed_by_staff?.full_name ?? "Unknown" },
@@ -113,6 +318,24 @@ export function PrescriptionDetailPage({
               { label: "Pending Items", value: pendingCount },
               { label: "Dispensed Items", value: dispensedCount },
             ]}
+          />
+
+          {/* Prescription Timeline */}
+          <TimelineFeed
+            title="Prescription Timeline"
+            description="Dispensing history and progress"
+            events={timelineEvents}
+            expandable={false}
+          />
+
+          {/* Related Actions */}
+          <RelatedActionsSection
+            hospitalSlug={hospitalSlug}
+            patientId={prescription?.patient?.id}
+            prescriptionId={prescription?.id}
+            encounterId={prescription?.encounter_id ?? undefined}
+            currentWorkspace="pharmacy"
+            title="Continue Care"
           />
 
           <section className="surface-panel p-4 sm:p-5">
@@ -133,7 +356,7 @@ export function PrescriptionDetailPage({
             />
 
             <div className="mt-4 space-y-4">
-              {items.map((item: any) => (
+              {items.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-border/70 bg-background p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-3">
@@ -184,6 +407,15 @@ export function PrescriptionDetailPage({
         </div>
 
         <div className="space-y-6">
+          <RelatedActionsSection
+            hospitalSlug={hospitalSlug}
+            patientId={prescription?.patient?.id}
+            prescriptionId={prescription?.id}
+            encounterId={prescription?.encounter_id ?? undefined}
+            currentWorkspace="pharmacy"
+            title="Related Workspaces"
+          />
+
           <section className="surface-panel p-4 sm:p-5">
             <WorkspaceSectionHeader
               title="Dispensing Flow"

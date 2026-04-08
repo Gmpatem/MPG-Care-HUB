@@ -8,19 +8,25 @@ import {
   BedDouble,
   BriefcaseMedical,
   Building2,
+  ClipboardCheck,
   ClipboardList,
   CreditCard,
   FlaskConical,
+  LayoutDashboard,
   LogOut,
   Menu,
+  Pill,
   Settings,
+  Settings2,
+  Shield,
   Stethoscope,
   UserRound,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/browser";
-import { hasWorkspaceAccess } from "@/lib/auth/workspaces";
+import { hasWorkspaceAccess, type WorkspaceKey } from "@/lib/auth/workspaces";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +37,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { HospitalQuickActions, QuickActionsTrigger } from "./hospital-quick-actions";
+import type { NavGroup, NavItem } from "@/lib/ui/hospital-navigation";
 
 type HospitalShellProps = {
   hospitalName: string;
@@ -41,17 +49,31 @@ type HospitalShellProps = {
   children: ReactNode;
 };
 
-type NavItem = {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description?: string;
+// Icon mapping for navigation
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  LayoutDashboard,
+  ClipboardList,
+  BriefcaseMedical,
+  Users,
+  Stethoscope,
+  ClipboardCheck,
+  FlaskConical,
+  Pill,
+  UserRound,
+  BedDouble,
+  Building2,
+  CreditCard,
+  Shield,
+  Settings,
+  Settings2,
+  Activity,
 };
 
-type NavSection = {
-  title: string;
-  items: NavItem[];
-};
+function NavIcon({ name, className }: { name: string; className?: string }) {
+  const Icon = ICON_MAP[name];
+  if (!Icon) return null;
+  return <Icon className={className} />;
+}
 
 export function HospitalShell({
   hospitalName,
@@ -64,6 +86,8 @@ export function HospitalShell({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -71,6 +95,7 @@ export function HospitalShell({
     router.refresh();
   }
 
+  // Permission checks
   const canAdmin = isPlatformOwner || hasWorkspaceAccess(allowedWorkspaces, "admin");
   const canFrontdesk = canAdmin || hasWorkspaceAccess(allowedWorkspaces, "frontdesk");
   const canDoctor = canAdmin || hasWorkspaceAccess(allowedWorkspaces, "doctor");
@@ -80,99 +105,83 @@ export function HospitalShell({
   const canPharmacy = canAdmin || hasWorkspaceAccess(allowedWorkspaces, "pharmacy");
   const canBilling = canAdmin || hasWorkspaceAccess(allowedWorkspaces, "billing");
 
-  const canClinicalShared = canAdmin || canFrontdesk || canDoctor || canNurse || canWard;
-  const canPatientRegistry = canClinicalShared || canBilling;
   const roleLabel = isPlatformOwner ? "platform_owner" : primaryRole ?? "member";
 
-  const sections: NavSection[] = [
+  // Build navigation groups with simplified UX architecture
+  const navGroups = [
     {
-      title: "Overview",
+      id: "today",
+      label: "Today",
+      priority: 1,
+      variant: "primary" as const,
       items: [
         {
-          label: "Hospital Overview",
+          label: "Overview",
           href: `/h/${hospitalSlug}`,
-          icon: Activity,
-          description: "Dashboard and operational summary",
+          icon: "LayoutDashboard",
+          description: "Dashboard and daily summary",
+          workspace: "shared" as const,
         },
       ],
     },
     {
-      title: "Patient Flow",
+      id: "reception",
+      label: "Reception",
+      priority: 2,
+      variant: "primary" as const,
       items: [
         ...(canFrontdesk
           ? [
               {
                 label: "Front Desk",
                 href: `/h/${hospitalSlug}/frontdesk`,
-                icon: ClipboardList,
-                description: "Register patients and manage arrivals",
+                icon: "ClipboardList",
+                description: "Patient registration and queue",
+                workspace: "frontdesk" as WorkspaceKey,
               },
-            ]
-          : []),
-        ...(canClinicalShared
-          ? [
               {
                 label: "Appointments",
                 href: `/h/${hospitalSlug}/appointments`,
-                icon: BriefcaseMedical,
-                description: "Schedule and check patient visits",
-              },
-              {
-                label: "Encounters",
-                href: `/h/${hospitalSlug}/encounters`,
-                icon: Stethoscope,
-                description: "Track active clinical visits",
+                icon: "BriefcaseMedical",
+                description: "Schedule and manage visits",
+                workspace: "frontdesk" as WorkspaceKey,
               },
             ]
           : []),
-        ...(canPatientRegistry
-          ? [
-              {
-                label: "Patient Directory",
-                href: `/h/${hospitalSlug}/patients`,
-                icon: Users,
-                description: "Search and open patient records",
-              },
-            ]
-          : []),
-      ],
+        {
+          label: "Patients",
+          href: `/h/${hospitalSlug}/patients`,
+          icon: "Users",
+          description: "Patient records and search",
+          workspace: "frontdesk" as WorkspaceKey,
+        },
+      ].filter(Boolean) as NavItem[],
     },
     {
-      title: "Clinical Workspaces",
+      id: "clinical",
+      label: "Clinical",
+      priority: 3,
+      variant: "primary" as const,
       items: [
         ...(canDoctor
           ? [
               {
-                label: "Doctor Workspace",
+                label: "Doctor",
                 href: `/h/${hospitalSlug}/doctor`,
-                icon: Stethoscope,
-                description: "Review visits, labs, and treatment plans",
+                icon: "Stethoscope",
+                description: "Clinical workspace",
+                workspace: "doctor" as WorkspaceKey,
               },
             ]
           : []),
-        ...(canNurse
+        ...(canFrontdesk || canDoctor
           ? [
               {
-                label: "Nursing Station",
-                href: `/h/${hospitalSlug}/nurse`,
-                icon: UserRound,
-                description: "Record vitals and nursing notes",
-              },
-            ]
-          : []),
-        ...(canWard
-          ? [
-              {
-                label: "Ward Admissions",
-                href: `/h/${hospitalSlug}/ward/admissions`,
-                icon: BedDouble,
-                description: "Manage inpatients and bed assignment",
-              },
-              {
-                label: "Ward Census",
-                href: `/h/${hospitalSlug}/ward/census`,
-                icon: Building2,
-                description: "View current ward occupancy",
+                label: "Encounters",
+                href: `/h/${hospitalSlug}/encounters`,
+                icon: "ClipboardCheck",
+                description: "Active consultations",
+                workspace: "frontdesk" as WorkspaceKey,
               },
             ]
           : []),
@@ -181,8 +190,9 @@ export function HospitalShell({
               {
                 label: "Laboratory",
                 href: `/h/${hospitalSlug}/lab`,
-                icon: FlaskConical,
-                description: "Review lab orders and enter results",
+                icon: "FlaskConical",
+                description: "Lab orders and results",
+                workspace: "lab" as WorkspaceKey,
               },
             ]
           : []),
@@ -191,137 +201,191 @@ export function HospitalShell({
               {
                 label: "Pharmacy",
                 href: `/h/${hospitalSlug}/pharmacy`,
-                icon: BriefcaseMedical,
-                description: "Dispense medication and review stock",
+                icon: "Pill",
+                description: "Dispense medications",
+                workspace: "pharmacy" as WorkspaceKey,
               },
             ]
           : []),
+      ].filter(Boolean) as NavItem[],
+    },
+    {
+      id: "inpatient",
+      label: "Inpatient",
+      priority: 4,
+      variant: "primary" as const,
+      items: [
+        ...(canNurse
+          ? [
+              {
+                label: "Nurse",
+                href: `/h/${hospitalSlug}/nurse`,
+                icon: "UserRound",
+                description: "Vitals and nursing notes",
+                workspace: "nurse" as WorkspaceKey,
+              },
+            ]
+          : []),
+        ...(canWard
+          ? [
+              {
+                label: "Ward",
+                href: `/h/${hospitalSlug}/ward`,
+                icon: "BedDouble",
+                description: "Admissions and beds",
+                workspace: "ward" as WorkspaceKey,
+              },
+              {
+                label: "Census",
+                href: `/h/${hospitalSlug}/ward/census`,
+                icon: "Building2",
+                description: "Bed occupancy overview",
+                workspace: "ward" as WorkspaceKey,
+              },
+            ]
+          : []),
+      ].filter(Boolean) as NavItem[],
+    },
+    {
+      id: "finance",
+      label: "Finance",
+      priority: 5,
+      variant: "secondary" as const,
+      items: [
         ...(canBilling
           ? [
               {
                 label: "Billing",
                 href: `/h/${hospitalSlug}/billing`,
-                icon: CreditCard,
-                description: "Manage invoices, balances, and payments",
+                icon: "CreditCard",
+                description: "Invoices and payments",
+                workspace: "billing" as WorkspaceKey,
               },
             ]
           : []),
-      ],
+      ].filter(Boolean) as NavItem[],
     },
     {
-      title: "Administration",
+      id: "admin",
+      label: "Administration",
+      priority: 6,
+      variant: "admin" as const,
       items: [
         ...(canAdmin
           ? [
               {
                 label: "Access Control",
                 href: `/h/${hospitalSlug}/admin/access`,
-                icon: Settings,
-                description: "Manage roles and workspace access",
+                icon: "Shield",
+                description: "User permissions",
+                workspace: "admin" as WorkspaceKey,
               },
               {
-                label: "Staff Management",
+                label: "Staff",
                 href: `/h/${hospitalSlug}/staff`,
-                icon: Users,
-                description: "Manage hospital staff records",
+                icon: "Users",
+                description: "Manage staff",
+                workspace: "admin" as WorkspaceKey,
               },
               {
                 label: "Ward Setup",
                 href: `/h/${hospitalSlug}/ward/config`,
-                icon: BedDouble,
-                description: "Configure wards, beds, and workflow",
+                icon: "Settings2",
+                description: "Configure wards",
+                workspace: "admin" as WorkspaceKey,
               },
               {
-                label: "Hospital Settings",
+                label: "Settings",
                 href: `/h/${hospitalSlug}/settings`,
-                icon: Settings,
-                description: "Update hospital configuration",
+                icon: "Settings",
+                description: "Hospital settings",
+                workspace: "admin" as WorkspaceKey,
               },
               {
-                label: "Audit Activity",
+                label: "Activity",
                 href: `/h/${hospitalSlug}/activity`,
-                icon: Activity,
-                description: "Review operational history",
+                icon: "Activity",
+                description: "Audit log",
+                workspace: "admin" as WorkspaceKey,
               },
             ]
           : []),
-      ],
+      ].filter(Boolean) as NavItem[],
     },
-  ].filter((section) => section.items.length > 0);
+  ].filter((group) => group.items.length > 0);
 
-  const quickLinks = [
-    canFrontdesk ? { label: "Register Patient", href: `/h/${hospitalSlug}/frontdesk/intake` } : null,
-    canDoctor ? { label: "Start Visit", href: `/h/${hospitalSlug}/encounters` } : null,
-    canLab ? { label: "Review Lab Queue", href: `/h/${hospitalSlug}/lab/orders` } : null,
-    canPharmacy ? { label: "Dispense Medication", href: `/h/${hospitalSlug}/pharmacy` } : null,
-    canBilling ? { label: "Receive Payment", href: `/h/${hospitalSlug}/billing/payments` } : null,
-  ].filter(Boolean) as Array<{ label: string; href: string }>;
+  // Find active navigation item
+  const activeNav = (() => {
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+          return { group, item };
+        }
+      }
+    }
+    return null;
+  })();
 
-  const activeSection =
-    sections.find((section) =>
-      section.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
-    ) ?? null;
+  const activeGroupLabel = activeNav?.group?.label ?? "Today";
+  const activeItemLabel = activeNav?.item?.label ?? "Overview";
 
-  const activeItem =
-    activeSection?.items.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ?? null;
-
-  const workspaceEyebrow = activeSection?.title ?? "Hospital Workspace";
-  const workspaceTitle = activeItem?.label ?? "Hospital Overview";
-
-  function renderNav() {
+  function renderNav(onNavigate?: () => void) {
     return (
-      <nav className="space-y-7">
-        {sections.map((section) => (
-          <div key={section.title} className="space-y-2.5">
-            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
-              {section.title}
+      <nav className="space-y-6">
+        {navGroups.map((group) => (
+          <div key={group.id} className="space-y-1">
+            {/* Group Label */}
+            <p
+              className={cn(
+                "px-3 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                group.variant === "admin"
+                  ? "text-white/25"
+                  : "text-white/40"
+              )}
+            >
+              {group.label}
             </p>
 
-            <div className="space-y-1.5">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            {/* Group Items */}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onNavigate}
                     className={cn(
-                      "group relative flex items-start gap-3 rounded-2xl px-3 py-3 transition-all",
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all",
                       isActive
-                        ? "bg-[rgba(42,179,204,0.16)] text-white shadow-[inset_0_0_0_1px_rgba(42,179,204,0.12)]"
-                        : "text-white/68 hover:bg-white/8 hover:text-white"
+                        ? "bg-[rgba(42,179,204,0.18)] text-white shadow-[inset_0_0_0_1px_rgba(42,179,204,0.15)]"
+                        : "text-white/65 hover:bg-white/8 hover:text-white"
                     )}
                   >
-                    {isActive ? (
-                      <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-[#2ab3cc]" />
-                    ) : null}
+                    {/* Active indicator */}
+                    {isActive && (
+                      <span className="absolute inset-y-2.5 left-0 w-1 rounded-r-full bg-[#2ab3cc]" />
+                    )}
 
+                    {/* Icon */}
                     <span
                       className={cn(
-                        "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
                         isActive
-                          ? "bg-white/10 text-white"
-                          : "bg-white/6 text-white/80 group-hover:bg-white/10"
+                          ? "bg-white/12 text-white"
+                          : "bg-white/5 text-white/70 group-hover:bg-white/10"
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
 
+                    {/* Label */}
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium leading-5">{item.label}</span>
-                      {item.description ? (
-                        <span
-                          className={cn(
-                            "mt-0.5 block overflow-hidden text-xs leading-5 transition-all duration-200",
-                            isActive
-                              ? "max-h-10 opacity-100 text-white/72"
-                              : "max-h-0 opacity-0 text-white/42 group-hover:max-h-10 group-hover:opacity-100 group-focus-visible:max-h-10 group-focus-visible:opacity-100"
-                          )}
-                        >
-                          {item.description}
-                        </span>
-                      ) : null}
+                      <span className="block text-sm font-medium leading-5">
+                        {item.label}
+                      </span>
                     </span>
                   </Link>
                 );
@@ -334,98 +398,141 @@ export function HospitalShell({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-white/8 bg-[var(--sidebar)] lg:flex lg:flex-col">
-          <div className="border-b border-white/8 px-5 py-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0e7a91] to-[#2ab3cc] text-white shadow-[0_10px_30px_rgba(14,122,145,0.28)]">
-                <Building2 className="h-5 w-5" />
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                  MPG Care Hub
-                </p>
-                <h1 className="truncate text-lg font-semibold text-white">{hospitalName}</h1>
-                <p className="mt-1 text-xs text-white/38">Signed in as {roleLabel}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 py-4">{renderNav()}</div>
-
-          <div className="border-t border-white/8 p-4">
-            <Button
-              variant="destructive"
-              className="w-full justify-start border-0 bg-[#e03620] text-white hover:bg-[#c03020]"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b bg-card/92 backdrop-blur">
-            <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-              <div className="lg:hidden">
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" aria-label="Open menu">
-                      <Menu className="h-4 w-4" />
-                    </Button>
-                  </SheetTrigger>
-
-                  <SheetContent side="left" className="w-[88vw] max-w-xs border-0 bg-[var(--sidebar)] p-0 text-white">
-                    <SheetHeader className="border-b border-white/8 px-5 py-5 text-left">
-                      <SheetTitle className="text-base text-white">{hospitalName}</SheetTitle>
-                      <SheetDescription className="text-white/48">
-                        MPG Care Hub · Signed in as {roleLabel}
-                      </SheetDescription>
-                    </SheetHeader>
-
-                    <div className="flex h-full flex-col">
-                      <div className="flex-1 overflow-y-auto px-3 py-4">{renderNav()}</div>
-                      <div className="border-t border-white/8 p-4">
-                        <Button
-                          variant="destructive"
-                          className="w-full justify-start border-0 bg-[#e03620] text-white hover:bg-[#c03020]"
-                          onClick={handleLogout}
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Logout
-                        </Button>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="eyebrow">{workspaceEyebrow}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="truncate text-base font-semibold sm:text-lg">{workspaceTitle}</h2>
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                    {roleLabel}
-                  </span>
+    <>
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="flex min-h-screen">
+          {/* Desktop Sidebar */}
+          <aside className="hidden w-64 shrink-0 border-r border-white/8 bg-[var(--sidebar)] lg:flex lg:flex-col">
+            {/* Header - Simplified */}
+            <div className="border-b border-white/8 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#0e7a91] to-[#2ab3cc] text-white shadow-lg shadow-[#0e7a91]/20">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-base font-semibold text-white">
+                    {hospitalName}
+                  </h1>
+                  <p className="text-xs text-white/40">{roleLabel}</p>
                 </div>
               </div>
-
-              <div className="hidden items-center gap-2 md:flex">
-                {quickLinks.slice(0, 2).map((link) => (
-                  <Button key={link.href} asChild variant="outline" size="sm">
-                    <Link href={link.href}>{link.label}</Link>
-                  </Button>
-                ))}
-              </div>
             </div>
-          </header>
 
-          <main className="flex-1 px-4 pb-8 pt-5 sm:px-6 lg:px-8">{children}</main>
+            {/* Navigation */}
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              {renderNav()}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-white/8 p-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-white/60 hover:bg-white/8 hover:text-white"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </Button>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* Header - Task-oriented */}
+            <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+              <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+                {/* Mobile Menu */}
+                <div className="lg:hidden">
+                  <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                    <SheetTrigger asChild>
+                      <Button variant="outline" size="icon" aria-label="Open menu">
+                        <Menu className="h-4 w-4" />
+                      </Button>
+                    </SheetTrigger>
+
+                    <SheetContent
+                      side="left"
+                      className="w-[min(85vw,300px)] border-0 bg-[var(--sidebar)] p-0 text-white"
+                    >
+                      <SheetHeader className="border-b border-white/8 px-4 py-4 text-left">
+                        <SheetTitle className="text-base text-white">
+                          {hospitalName}
+                        </SheetTitle>
+                        <SheetDescription className="text-white/50">
+                          Signed in as {roleLabel}
+                        </SheetDescription>
+                      </SheetHeader>
+
+                      <div className="flex h-full flex-col">
+                        <div className="flex-1 overflow-y-auto px-3 py-4">
+                          {renderNav(() => setMobileMenuOpen(false))}
+                        </div>
+                        <div className="border-t border-white/8 p-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-white/60 hover:bg-white/8"
+                            onClick={() => {
+                              setMobileMenuOpen(false);
+                              handleLogout();
+                            }}
+                          >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Sign out
+                          </Button>
+                        </div>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
+
+                {/* Page Context */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {activeGroupLabel}
+                    </span>
+                  </div>
+                  <h2 className="truncate text-sm font-semibold sm:text-base">
+                    {activeItemLabel}
+                  </h2>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex items-center gap-2">
+                  <QuickActionsTrigger onClick={() => setQuickActionsOpen(true)} />
+
+                  {/* Sign out - desktop only */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden text-muted-foreground hover:text-foreground md:flex"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </Button>
+                </div>
+              </div>
+            </header>
+
+            {/* Main Content Area */}
+            <main className="flex-1 px-4 pb-8 pt-5 sm:px-6 lg:px-8">
+              {children}
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Quick Actions Dialog */}
+      <HospitalQuickActions
+        hospitalSlug={hospitalSlug}
+        allowedWorkspaces={allowedWorkspaces as WorkspaceKey[]}
+        isPlatformOwner={isPlatformOwner}
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+      />
+    </>
   );
 }

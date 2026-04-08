@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { StatusBadge } from "@/components/layout/status-badge";
+import { TaskReadinessRow } from "@/components/layout/task-readiness-summary";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DoctorQueueRow, EncounterStage } from "@/features/doctor-workflow/types";
+import { getEncounterStageReadiness } from "@/lib/ui/task-state";
 
 function formatDateTime(value: string | null) {
   if (!value) return "—";
@@ -47,48 +49,6 @@ function encounterTone(status: string | null) {
   }
 }
 
-function stageLabel(stage: EncounterStage | null, encounterId: string | null) {
-  if (!encounterId || !stage) return "new consultation";
-
-  switch (stage) {
-    case "initial_review":
-      return "initial review";
-    case "awaiting_results":
-      return "awaiting lab results";
-    case "results_review":
-      return "ready for results review";
-    case "treatment_decided":
-      return "treatment decided";
-    case "admission_requested":
-      return "admission requested";
-    case "completed":
-      return "completed";
-    default:
-      return "initial review";
-  }
-}
-
-function stageTone(stage: EncounterStage | null, encounterId: string | null) {
-  if (!encounterId || !stage) return "info" as const;
-
-  switch (stage) {
-    case "initial_review":
-      return "info" as const;
-    case "awaiting_results":
-      return "warning" as const;
-    case "results_review":
-      return "success" as const;
-    case "admission_requested":
-      return "danger" as const;
-    case "treatment_decided":
-      return "success" as const;
-    case "completed":
-      return "neutral" as const;
-    default:
-      return "neutral" as const;
-  }
-}
-
 function actionLabel(row: DoctorQueueRow) {
   if (!row.encounter_id) return "Start Encounter";
 
@@ -104,6 +64,17 @@ function actionLabel(row: DoctorQueueRow) {
     default:
       return "Continue Encounter";
   }
+}
+
+function EncounterStageBadge({ 
+  stage, 
+  hasEncounter 
+}: { 
+  stage: EncounterStage | null; 
+  hasEncounter: boolean;
+}) {
+  const signal = getEncounterStageReadiness(stage, hasEncounter);
+  return <TaskReadinessRow signal={signal} />;
 }
 
 function sectionTitle(section: string) {
@@ -150,6 +121,109 @@ function bucketRows(rows: DoctorQueueRow[]) {
   };
 }
 
+function QueueItem({
+  hospitalSlug,
+  row,
+}: {
+  hospitalSlug: string;
+  row: DoctorQueueRow;
+}) {
+  const badges = [];
+  if (row.requires_lab) {
+    badges.push({ label: "lab needed", tone: "warning" as const });
+  }
+  if (row.disposition_type) {
+    badges.push({ label: row.disposition_type.replaceAll("_", " "), tone: "neutral" as const });
+  }
+
+  const statusBadges = [];
+  if (row.appointment_status) {
+    statusBadges.push(
+      <StatusBadge
+        key="appt"
+        label={row.appointment_status}
+        tone={appointmentTone(row.appointment_status)}
+        className="px-2.5 py-1 capitalize font-medium"
+      />
+    );
+  }
+  if (row.encounter_status) {
+    statusBadges.push(
+      <StatusBadge
+        key="enc"
+        label={row.encounter_status}
+        tone={encounterTone(row.encounter_status)}
+        className="px-2.5 py-1 capitalize font-medium"
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
+          {/* Header: Name + Statuses */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">
+              {getFullName(row) || "Unknown patient"}
+            </h3>
+            {statusBadges}
+            <EncounterStageBadge 
+              stage={row.encounter_stage} 
+              hasEncounter={!!row.encounter_id} 
+            />
+            {badges.map((badge, index) => (
+              <StatusBadge
+                key={index}
+                label={badge.label}
+                tone={badge.tone}
+                className="px-2.5 py-1 capitalize font-medium"
+              />
+            ))}
+          </div>
+
+          {/* Primary Meta */}
+          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+            <p>{row.patient_number ?? "No patient number"} · {row.visit_type ?? "outpatient"}</p>
+            <p>Assigned: {row.assigned_staff_name ?? "Unassigned"}</p>
+            <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
+            <p>Checked in: {formatDateTime(row.check_in_at)}</p>
+          </div>
+
+          {/* Secondary Meta - Always visible but styled differently */}
+          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+            <p>Queue: {row.queue_number ?? "—"}</p>
+            <p>Chief complaint: {row.chief_complaint ?? "—"}</p>
+            <p>Results reviewed: {formatDateTime(row.results_reviewed_at)}</p>
+            <p>Final decision: {formatDateTime(row.final_decision_at)}</p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/h/${hospitalSlug}/doctor/patients/${row.patient_id}`}>
+              View Patient
+            </Link>
+          </Button>
+
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/h/${hospitalSlug}/encounters`}>
+              Encounters
+            </Link>
+          </Button>
+
+          <Button asChild size="sm">
+            <Link href={`/h/${hospitalSlug}/doctor/appointments/${row.appointment_id}/open`}>
+              {actionLabel(row)}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QueueSection({
   hospitalSlug,
   section,
@@ -170,90 +244,11 @@ function QueueSection({
 
       <div className="space-y-4">
         {rows.map((row) => (
-          <div
+          <QueueItem
             key={row.appointment_id}
-            className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
-          >
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div className="min-w-0 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-semibold text-foreground">
-                    {getFullName(row) || "Unknown patient"}
-                  </h3>
-
-                  <StatusBadge
-                    label={row.appointment_status ?? "scheduled"}
-                    tone={appointmentTone(row.appointment_status)}
-                    className="px-2.5 py-1 capitalize font-medium"
-                  />
-
-                  {row.encounter_status ? (
-                    <StatusBadge
-                      label={row.encounter_status}
-                      tone={encounterTone(row.encounter_status)}
-                      className="px-2.5 py-1 capitalize font-medium"
-                    />
-                  ) : null}
-
-                  <StatusBadge
-                    label={stageLabel(row.encounter_stage, row.encounter_id)}
-                    tone={stageTone(row.encounter_stage, row.encounter_id)}
-                    className="px-2.5 py-1 capitalize font-medium"
-                  />
-
-                  {row.requires_lab ? (
-                    <StatusBadge
-                      label="lab needed"
-                      tone="warning"
-                      className="px-2.5 py-1 font-medium"
-                    />
-                  ) : null}
-
-                  {row.disposition_type ? (
-                    <StatusBadge
-                      label={row.disposition_type.replaceAll("_", " ")}
-                      tone="neutral"
-                      className="px-2.5 py-1 capitalize font-medium"
-                    />
-                  ) : null}
-                </div>
-
-                <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                  <p>{row.patient_number ?? "No patient number"} · {row.visit_type ?? "outpatient"}</p>
-                  <p>Assigned: {row.assigned_staff_name ?? "Unassigned"}</p>
-                  <p>Scheduled: {formatDateTime(row.scheduled_at)}</p>
-                  <p>Checked in: {formatDateTime(row.check_in_at)}</p>
-                </div>
-
-                <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                  <p>Queue: {row.queue_number ?? "—"}</p>
-                  <p>Chief complaint: {row.chief_complaint ?? "—"}</p>
-                  <p>Results reviewed: {formatDateTime(row.results_reviewed_at)}</p>
-                  <p>Final decision: {formatDateTime(row.final_decision_at)}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/h/${hospitalSlug}/doctor/patients/${row.patient_id}`}>
-                    View Patient
-                  </Link>
-                </Button>
-
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/h/${hospitalSlug}/encounters`}>
-                    Encounters
-                  </Link>
-                </Button>
-
-                <Button asChild size="sm">
-                  <Link href={`/h/${hospitalSlug}/doctor/appointments/${row.appointment_id}/open`}>
-                    {actionLabel(row)}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
+            hospitalSlug={hospitalSlug}
+            row={row}
+          />
         ))}
       </div>
     </div>

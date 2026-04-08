@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { StatusBadge } from "@/components/layout/status-badge";
 import { NurseNoteForm } from "@/features/ward/components/nurse-note-form";
 import { advanceAdmissionWorkflowStep } from "@/features/ward/actions/advance-admission-workflow-step";
 import { toggleDischargeChecklistItem } from "@/features/ward/actions/toggle-discharge-checklist-item";
@@ -50,28 +53,60 @@ export function AdmissionDetailPage({
 
   const destinationBeds = beds.filter((bed: any) => bed.ward_id !== null);
 
+  const patientName = fullName(admission.patient);
+  
+  const patientMeta = (
+    <>
+      <span className="text-sm text-muted-foreground">
+        {admission.patient?.patient_number ?? "No patient number"}
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-sm text-muted-foreground capitalize">
+        {admission.patient?.sex ?? "unknown"}
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <StatusBadge 
+        label={admission.discharge_requested ? "discharge requested" : "admitted"} 
+        tone={admission.discharge_requested ? "warning" : "success"}
+        className="text-xs"
+      />
+    </>
+  );
+
   return (
     <main className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Admission detail</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Ward Admission</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review admitted patient details, nursing notes, vitals, doctor rounds, discharge checklist, and transfers.
-          </p>
-        </div>
+      <WorkspacePageHeader
+        eyebrow="Ward Admission"
+        title={patientName}
+        description={`${admission.ward?.name ?? "—"} · Bed ${admission.bed?.bed_number ?? "Unassigned"}. Review admitted patient details, nursing notes, vitals, doctor rounds, discharge checklist, and transfers.`}
+        meta={patientMeta}
+        backLink={{ href: `/h/${hospitalSlug}/ward`, label: "Back to Ward" }}
+        primaryAction={
+          nextStep ? (
+            <form action={advanceAdmissionWorkflowStep}>
+              <input type="hidden" name="hospital_slug" value={hospitalSlug} />
+              <input type="hidden" name="admission_id" value={admission.id} />
+              <Button type="submit">
+                Move to {nextStep.step_name}
+              </Button>
+            </form>
+          ) : undefined
+        }
+        secondaryActions={
+          <>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/h/${hospitalSlug}/nurse/admissions/${admission.id}`}>Nurse Chart</Link>
+            </Button>
+          </>
+        }
+        compact
+      />
 
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/census`}>Back to Census</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/h/${hospitalSlug}/ward/discharges`}>Discharge Queue</Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border p-5">
+      {/* Workflow Progress */}
+      <div className="rounded-xl border p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">Workflow Progress</h2>
@@ -106,42 +141,32 @@ export function AdmissionDetailPage({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            {nextStep ? (
-              <form action={advanceAdmissionWorkflowStep}>
-                <input type="hidden" name="hospital_slug" value={hospitalSlug} />
-                <input type="hidden" name="admission_id" value={admission.id} />
-                <Button type="submit">
-                  Move to {nextStep.step_name}
-                </Button>
-              </form>
-            ) : (
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                Final workflow step reached.
-              </div>
-            )}
-
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/ward/config`}>View Ward Config</Link>
-            </Button>
-          </div>
+          {!nextStep && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Final workflow step reached.
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <div className="rounded-xl border p-5">
-            <p className="text-sm text-muted-foreground">Patient</p>
-            <h2 className="mt-1 text-lg font-semibold">{fullName(admission.patient)}</h2>
-            <p className="text-sm text-muted-foreground">
-              {admission.patient?.patient_number ?? "No patient number"} · {admission.patient?.sex ?? "unknown"} · {admission.patient?.phone ?? "No phone"}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
+          {/* Patient Info */}
+          <div className="rounded-xl border p-4 sm:p-5">
+            <h2 className="text-lg font-semibold">Patient Information</h2>
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <p><span className="font-medium">Name:</span> {patientName}</p>
+              <p><span className="font-medium">Number:</span> {admission.patient?.patient_number ?? "—"}</p>
+              <p><span className="font-medium">Sex:</span> {admission.patient?.sex ?? "—"}</p>
+              <p><span className="font-medium">Phone:</span> {admission.patient?.phone ?? "—"}</p>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
               Emergency: {admission.patient?.emergency_contact_name ?? "—"} · {admission.patient?.emergency_contact_phone ?? "—"}
             </p>
           </div>
 
-          <div className="rounded-xl border p-5">
+          {/* Admission Summary */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Admission Summary</h2>
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <p><span className="font-medium">Status:</span> {admission.status}</p>
@@ -174,19 +199,18 @@ export function AdmissionDetailPage({
             admissionId={admission.id}
           />
 
-          <div className="rounded-xl border p-5">
+          {/* Nurse Notes */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Nurse Notes</h2>
 
             {nurseNotes.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">No nurse notes recorded yet.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {nurseNotes.map((note) => (
+                {nurseNotes.map((note: any) => (
                   <div key={note.id} className="rounded-lg border p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                        {note.note_type}
-                      </span>
+                      <Badge variant="outline">{note.note_type}</Badge>
                       <span className="text-sm text-muted-foreground">
                         {formatDateTime(note.created_at)}
                       </span>
@@ -205,7 +229,8 @@ export function AdmissionDetailPage({
             )}
           </div>
 
-          <div className="rounded-xl border p-5">
+          {/* Discharge Checklist */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Discharge Checklist</h2>
 
             {dischargeChecklist.length === 0 ? (
@@ -269,7 +294,8 @@ export function AdmissionDetailPage({
             />
           ) : null}
 
-          <div className="rounded-xl border p-5">
+          {/* Transfer History */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Transfer History</h2>
 
             {transfers.length === 0 ? (
@@ -296,14 +322,15 @@ export function AdmissionDetailPage({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border p-5">
+          {/* Vitals Timeline */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Vitals Timeline</h2>
 
             {vitals.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">No admission-linked vitals recorded yet.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {vitals.map((row) => (
+                {vitals.map((row: any) => (
                   <div key={row.id} className="rounded-lg border p-4 text-sm">
                     <p className="font-medium">{formatDateTime(row.recorded_at)}</p>
                     <p className="mt-2 text-muted-foreground">
@@ -321,14 +348,15 @@ export function AdmissionDetailPage({
             )}
           </div>
 
-          <div className="rounded-xl border p-5">
+          {/* Doctor Rounds */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Doctor Rounds</h2>
 
             {rounds.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">No doctor rounds recorded yet.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {rounds.map((row) => (
+                {rounds.map((row: any) => (
                   <div key={row.id} className="rounded-lg border p-4 text-sm">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium">{formatDateTime(row.round_datetime)}</p>
@@ -361,7 +389,8 @@ export function AdmissionDetailPage({
             )}
           </div>
 
-          <div className="rounded-xl border p-5">
+          {/* Next Actions */}
+          <div className="rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Next Ward Actions</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild variant="outline">
@@ -382,4 +411,3 @@ export function AdmissionDetailPage({
     </main>
   );
 }
-

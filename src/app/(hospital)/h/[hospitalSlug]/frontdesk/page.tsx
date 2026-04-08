@@ -21,6 +21,7 @@ export default async function FrontdeskPage({ params }: PageProps) {
       hospital={data.hospital}
       summary={data.summary}
       queueRows={data.queueRows}
+      staff={data.staff}
     />
   );
 }

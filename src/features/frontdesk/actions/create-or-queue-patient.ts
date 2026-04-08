@@ -32,7 +32,8 @@ export async function createOrQueuePatient(
   const emergencyContactName = normalizeText(formData.get("emergency_contact_name")) || null;
   const emergencyContactPhone = normalizeText(formData.get("emergency_contact_phone")) || null;
   const staffId = normalizeText(formData.get("staff_id")) || null;
-  const scheduledAt = normalizeText(formData.get("scheduled_at"));
+  const scheduledAtInput = normalizeText(formData.get("scheduled_at"));
+  const scheduledAt = scheduledAtInput || new Date().toISOString();
   const visitType = normalizeText(formData.get("visit_type")) || "outpatient";
   const appointmentType = normalizeText(formData.get("appointment_type")) || "walk_in";
   const reason = normalizeText(formData.get("reason")) || null;
@@ -46,12 +47,6 @@ export async function createOrQueuePatient(
     };
   }
 
-  if (!scheduledAt) {
-    return {
-      success: false,
-      message: "Scheduled time is required.",
-    };
-  }
 
   const supabase = await createClient();
 
@@ -193,3 +188,4 @@ export async function createOrQueuePatient(
     appointmentId: appointment.id,
   };
 }
+

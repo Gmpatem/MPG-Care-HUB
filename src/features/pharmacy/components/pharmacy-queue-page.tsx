@@ -4,15 +4,31 @@ import {
   ClipboardList,
   Pill,
   Receipt,
+  PackageOpen,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/layout/status-badge";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { InlineInfo } from "@/components/feedback/inline-feedback";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
-import { WorkspaceStatCard } from "@/components/layout/workspace-stat-card";
 import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
+import { QueueItemCard } from "@/components/layout/queue-item-card";
+import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { HandoffHint } from "@/components/layout/workflow-handoff-card";
+import {
+  AttentionPanel,
+  ActivityFeed,
+  type AttentionItem,
+  type ActivityItem,
+} from "@/components/layout";
+import {
+  WorkspacePageShell,
+} from "@/components/layout/workspace-page-shell";
 import { Button } from "@/components/ui/button";
+import { getPrescriptionReadiness } from "@/lib/ui/task-state";
 
 function fullName(patient: any) {
   if (!patient) return "Unknown patient";
@@ -30,11 +46,79 @@ function statusTone(status: string) {
   return "neutral" as const;
 }
 
+function PrescriptionListItem({
+  hospitalSlug,
+  prescription,
+}: {
+  hospitalSlug: string;
+  prescription: any;
+}) {
+  const readiness = getPrescriptionReadiness(
+    prescription.status,
+    prescription.stock_ready_count ?? 0,
+    prescription.no_stock_count ?? 0,
+    prescription.dispensed_count ?? 0,
+    prescription.item_count ?? 0
+  );
+
+  const badges = [];
+  if (prescription.prescribed_by_staff?.full_name) {
+    badges.push({ label: "From doctor", tone: "info" as const });
+  }
+
+  // Determine handoff status
+  const isBlocked = prescription.no_stock_count > 0;
+  const isComplete = prescription.status === "dispensed";
+
+  return (
+    <QueueItemCard
+      id={prescription.id}
+      title={fullName(prescription.patient)}
+      subtitle={`${prescription.patient?.patient_number ?? "No patient number"} · Received ${formatDateTime(prescription.prescribed_at)}`}
+      readiness={readiness}
+      badges={badges}
+      meta={[
+        { label: "Prescriber", value: prescription.prescribed_by_staff?.full_name ?? "Unknown" },
+        { label: "Items", value: `${prescription.dispensed_count ?? 0}/${prescription.item_count ?? 0} dispensed` },
+        { label: "Ready", value: prescription.stock_ready_count ?? 0 },
+        { label: "No stock", value: prescription.no_stock_count ?? 0 },
+      ]}
+      actions={{
+        primary: {
+          label: "Open for Dispensing",
+          href: `/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}`,
+        },
+      }}
+    >
+      <div className="flex items-center gap-2 pt-2 border-t">
+        <HandoffHint
+          from="doctor"
+          to="pharmacy"
+          status={isComplete ? "complete" : isBlocked ? "blocked" : "ready"}
+          description={isComplete ? "Dispensed — ready for billing" : isBlocked ? "Stock shortage" : "Ready for dispensing"}
+        />
+        {isComplete && (
+          <>
+            <span className="text-muted-foreground">→</span>
+            <HandoffHint
+              from="pharmacy"
+              to="billing"
+              status="ready"
+              description="Awaiting payment"
+            />
+          </>
+        )}
+      </div>
+    </QueueItemCard>
+  );
+}
+
 function EmptyState({ hospitalSlug }: { hospitalSlug: string }) {
   return (
     <WorkspaceEmptyState
-      title="No prescriptions received yet"
-      description="Doctor prescriptions will appear here automatically after they are created from the clinical workflow."
+      variant="default"
+      title="No prescriptions in queue"
+      description="Doctor prescriptions will appear here automatically after they are created from the clinical workflow. Check the Doctor workspace for pending prescriptions."
       action={
         <Button asChild variant="outline">
           <Link href={`/h/${hospitalSlug}/doctor`}>Open Doctor Workspace</Link>
@@ -60,85 +144,20 @@ function Section({
       <WorkspaceSectionHeader title={title} description={description} />
 
       {prescriptions.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-border/80 bg-background/50 p-4 text-sm text-muted-foreground">
-          No prescriptions in this section.
+        <div className="mt-4">
+          <InlineInfo 
+            message="No prescriptions in this section. Items will appear here as prescriptions move through the workflow."
+            compact
+          />
         </div>
       ) : (
         <div className="mt-4 space-y-4">
           {prescriptions.map((prescription) => (
-            <div
+            <PrescriptionListItem
               key={prescription.id}
-              className="rounded-2xl border border-border/70 bg-background p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]"
-            >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-semibold text-foreground">{fullName(prescription.patient)}</p>
-
-                    <StatusBadge
-                      label={prescription.status.replaceAll("_", " ")}
-                      tone={statusTone(prescription.status)}
-                      className="px-2.5 py-1 capitalize font-medium"
-                    />
-
-                    <StatusBadge
-                      label={prescription.prescribed_by_staff?.full_name ? "from doctor" : "received"}
-                      tone="info"
-                      className="px-2.5 py-1 font-medium"
-                    />
-
-                    {prescription.no_stock_count > 0 ? (
-                      <StatusBadge
-                        label={`${prescription.no_stock_count} no stock`}
-                        tone="danger"
-                        className="px-2.5 py-1 font-medium"
-                      />
-                    ) : (
-                      <StatusBadge
-                        label="stock ready"
-                        tone="success"
-                        className="px-2.5 py-1 font-medium"
-                      />
-                    )}
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {prescription.patient?.patient_number ?? "No patient number"} · Received {formatDateTime(prescription.prescribed_at)}
-                  </p>
-
-                  <p className="text-sm text-muted-foreground">
-                    Prescriber: {prescription.prescribed_by_staff?.full_name ?? "Unknown"}
-                  </p>
-
-                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
-                    <p>Total items: {prescription.item_count}</p>
-                    <p>Pending: {prescription.pending_count}</p>
-                    <p>Partial: {prescription.partial_count}</p>
-                    <p>Dispensed: {prescription.dispensed_count}</p>
-                  </div>
-
-                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
-                    <p>Ready items: {prescription.stock_ready_count}</p>
-                    <p>No stock items: {prescription.no_stock_count}</p>
-                    <p>Completion: {prescription.completion_ratio}%</p>
-                  </div>
-
-                  {prescription.notes ? (
-                    <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
-                      {prescription.notes}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button asChild>
-                    <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${prescription.id}`}>
-                      Open for Dispensing
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
+              hospitalSlug={hospitalSlug}
+              prescription={prescription}
+            />
           ))}
         </div>
       )}
@@ -150,10 +169,14 @@ export function PharmacyQueuePage({
   hospitalSlug,
   hospitalName,
   prescriptions,
+  attentionItems = [],
+  recentActivity = [],
 }: {
   hospitalSlug: string;
   hospitalName: string;
   prescriptions: any[];
+  attentionItems?: AttentionItem[];
+  recentActivity?: ActivityItem[];
 }) {
   const incoming = prescriptions.filter((p) => p.workflow_bucket === "incoming");
   const partial = prescriptions.filter((p) => p.workflow_bucket === "partial");
@@ -164,50 +187,99 @@ export function PharmacyQueuePage({
   const dispensedCount = prescriptions.filter((p) => p.status === "dispensed").length;
   const noStockPrescriptionCount = prescriptions.filter((p) => p.no_stock_count > 0).length;
 
+  // Generate attention items from data if not provided
+  const generatedAttentionItems: AttentionItem[] = attentionItems.length > 0
+    ? attentionItems
+    : [
+        ...(noStockPrescriptionCount > 0 ? [{
+          id: "stock-issues",
+          title: `${noStockPrescriptionCount} prescription${noStockPrescriptionCount > 1 ? 's' : ''} with stock issues`,
+          description: "Items unavailable — consider alternatives or restocking",
+          tone: "warning" as const,
+          href: `/h/${hospitalSlug}/pharmacy`,
+          actionLabel: "Review Issues",
+        }] : []),
+        ...(incoming.length > 5 ? [{
+          id: "pharmacy-backlog",
+          title: "Pharmacy queue backing up",
+          description: `${incoming.length} prescriptions waiting to be processed`,
+          tone: "info" as const,
+          href: `/h/${hospitalSlug}/pharmacy`,
+          actionLabel: "Process Queue",
+        }] : []),
+      ].filter(Boolean);
+
   return (
-    <main className="space-y-6">
+    <WorkspacePageShell>
       <WorkspacePageHeader
         eyebrow="Pharmacy Workspace"
         title="Pharmacy"
         description="Receive doctor prescriptions, confirm stock availability, dispense medication safely, and track partial fulfillment without losing item-level visibility."
-        actions={
-          <>
-            <Button asChild>
-              <Link href={`/h/${hospitalSlug}/pharmacy`}>Refresh Dispensing Queue</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
-            </Button>
-          </>
+        primaryAction={
+          <Button asChild>
+            <Link href={`/h/${hospitalSlug}/pharmacy`}>Refresh Dispensing Queue</Link>
+          </Button>
+        }
+        secondaryActions={
+          <Button asChild variant="outline">
+            <Link href={`/h/${hospitalSlug}/doctor`}>Doctor Workspace</Link>
+          </Button>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <WorkspaceStatCard
-          title="Incoming Prescriptions"
+      {/* KPI Summary Strip - Primary pharmacy metrics */}
+      <KpiSummaryStrip>
+        <KpiCard
+          title="Incoming"
           value={incoming.length}
-          description="New prescriptions waiting for pharmacy action"
+          description={incoming.length > 0 
+            ? "New prescriptions waiting for dispensing action"
+            : "No new prescriptions to process"}
           icon={<ClipboardList className="h-4 w-4" />}
+          tone={incoming.length > 5 ? "warning" : incoming.length > 0 ? "info" : "neutral"}
+          action={{ label: "Dispense", href: `/h/${hospitalSlug}/pharmacy` }}
         />
-        <WorkspaceStatCard
-          title="In Progress"
+        <KpiCard
+          title="Partially Filled"
           value={partialCount}
-          description="Prescriptions partially dispensed or still being prepared"
-          icon={<Pill className="h-4 w-4" />}
+          description={partialCount > 0 
+            ? "Prescriptions with some items still pending"
+            : "No partially filled prescriptions"}
+          icon={<Clock className="h-4 w-4" />}
+          tone={partialCount > 0 ? "warning" : "neutral"}
+          action={{ label: "Complete", href: `/h/${hospitalSlug}/pharmacy` }}
         />
-        <WorkspaceStatCard
-          title="Completed"
-          value={dispensedCount}
-          description="Prescriptions fully dispensed"
-          icon={<Receipt className="h-4 w-4" />}
-        />
-        <WorkspaceStatCard
+        <KpiCard
           title="Stock Issues"
           value={noStockPrescriptionCount}
-          description="Prescriptions blocked by unavailable medication"
+          description={noStockPrescriptionCount > 0 
+            ? "Prescriptions blocked by unavailable medication"
+            : "All prescriptions have stock available"}
           icon={<AlertTriangle className="h-4 w-4" />}
+          tone={noStockPrescriptionCount > 0 ? "danger" : "neutral"}
+          action={{ label: "Review Issues", href: `/h/${hospitalSlug}/admin/pharmacy-stock` }}
         />
-      </div>
+        <KpiCard
+          title="Completed Today"
+          value={dispensedCount}
+          description={dispensedCount > 0 
+            ? "Prescriptions fully dispensed"
+            : "No prescriptions completed yet"}
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          tone={dispensedCount > 0 ? "success" : "neutral"}
+          action={{ label: "View History", href: `/h/${hospitalSlug}/pharmacy` }}
+        />
+      </KpiSummaryStrip>
+
+      {/* Attention Panel for pharmacy priorities */}
+      {generatedAttentionItems.length > 0 && (
+        <AttentionPanel
+          title="Pharmacy Attention"
+          description="Prescriptions requiring priority handling"
+          items={generatedAttentionItems}
+          className="mb-6"
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.55fr_.95fr]">
         <div className="space-y-6">
@@ -294,6 +366,6 @@ export function PharmacyQueuePage({
           </section>
         </div>
       </div>
-    </main>
+    </WorkspacePageShell>
   );
 }

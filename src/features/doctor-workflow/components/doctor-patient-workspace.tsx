@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
+import { PatientJourneyStrip, type JourneyStageInfo } from "@/components/layout/patient-journey-strip";
 
 type HospitalLite = {
   id: string;
@@ -323,56 +325,94 @@ export function DoctorPatientWorkspace({
   vitalsTimeline: VitalsTimelineRow[];
   recentEncounters: EncounterRow[];
 }) {
+  const patientName = fullName(patient);
+  const patientMeta = (
+    <>
+      <span className="text-sm text-muted-foreground">
+        {patient.patient_number ?? "No patient number"}
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-sm text-muted-foreground capitalize">
+        {patient.sex ?? "unknown"}
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-sm text-muted-foreground">
+        Age {ageFromDob(patient.date_of_birth)}
+      </span>
+      {patient.phone && (
+        <>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-sm text-muted-foreground">{patient.phone}</span>
+        </>
+      )}
+    </>
+  );
+
+  // Build patient journey from current context
+  const latestEncounter = recentEncounters[0];
+  const journeyStages: JourneyStageInfo[] = [
+    { stage: "intake", status: "complete", label: "Intake Complete" },
+    { stage: "checkin", status: "complete" },
+    { 
+      stage: "doctor", 
+      status: latestEncounter ? "active" : "waiting",
+      label: latestEncounter?.status === "finalized" ? "Doctor Review Complete" : "Doctor Review",
+      description: latestEncounter?.chief_complaint ?? undefined,
+    },
+    { stage: "lab", status: "optional" },
+    { stage: "pharmacy", status: "optional" },
+    { stage: "admission", status: latestEncounter?.admission_requested ? "waiting" : "optional" },
+    { stage: "billing", status: "optional" },
+    { stage: "discharge", status: "optional" },
+    { stage: "complete", status: "optional" },
+  ];
+
   return (
     <main className="space-y-6">
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-5">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Doctor Workspace</p>
-            <h1 className="text-3xl font-bold">{fullName(patient)}</h1>
-            <p className="text-sm text-muted-foreground">
-              {patient.patient_number ?? "No patient number"} · {patient.sex ?? "unknown"} · Age {ageFromDob(patient.date_of_birth)}
-            </p>
-          </div>
-
-          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-            <p>Phone: {patient.phone ?? "—"}</p>
-            <p>Email: {patient.email ?? "—"}</p>
-            <p>Emergency Contact: {patient.emergency_contact_name ?? "—"}</p>
-            <p>Emergency Phone: {patient.emergency_contact_phone ?? "—"}</p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href={`/h/${hospital.slug}/encounters`}>Open Encounters</Link>
-            </Button>
-
+      <WorkspacePageHeader
+        eyebrow="Patient Workspace"
+        title={patientName}
+        description="Clinical workspace for patient care. Review vitals, manage encounters, order labs, and write prescriptions."
+        meta={patientMeta}
+        backLink={{ href: `/h/${hospital.slug}/doctor`, label: "Back to Doctor Queue" }}
+        primaryAction={
+          <Button asChild>
+            <Link href={`/h/${hospital.slug}/encounters`}>Open Encounters</Link>
+          </Button>
+        }
+        secondaryActions={
+          <>
             <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor/patients/${patient.id}/labs/new`}>Order Lab</Link>
+              <Link href={`/h/${hospital.slug}/doctor/patients/${patient.id}/labs/new`}>
+                Order Lab
+              </Link>
             </Button>
-
             <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor/patients/${patient.id}/prescriptions/new`}>Write Prescription</Link>
+              <Link href={`/h/${hospital.slug}/doctor/patients/${patient.id}/prescriptions/new`}>
+                Write Prescription
+              </Link>
             </Button>
+          </>
+        }
+        compact
+      />
 
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/pharmacy`}>Pharmacy Queue</Link>
-            </Button>
-
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor/rounds`}>Rounds</Link>
-            </Button>
-
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/patients/${patient.id}`}>Patient Profile</Link>
-            </Button>
-
-            <Button asChild variant="outline">
-              <Link href={`/h/${hospital.slug}/doctor`}>Back to Doctor Queue</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Patient Journey Strip */}
+      <PatientJourneyStrip
+        stages={journeyStages}
+        patientId={patient.id}
+        hospitalSlug={hospital.slug}
+        currentInterpretation={latestEncounter 
+          ? `Active encounter: ${latestEncounter.chief_complaint || "Clinical review in progress"}`
+          : "New consultation - awaiting initial review"
+        }
+        nextStep={latestEncounter?.status === "finalized" 
+          ? "Encounter finalized - case complete"
+          : latestEncounter 
+            ? "Continue active encounter"
+            : "Start new encounter"
+        }
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <LatestVitalsCard latestVitals={latestVitals} />
