@@ -38,7 +38,9 @@ export {
 // Workspace Header Components
 export {
   WorkspacePageHeader,
+  WorkspacePageHeaderMobileActions,
   type WorkspacePageHeaderProps,
+  type WorkspacePageHeaderMobileActionsProps,
 } from "./workspace-page-header";
 
 // Workflow Components
@@ -159,3 +161,66 @@ export {
   type JourneyStageStatus,
   type JourneyStageInfo,
 } from "./patient-journey-strip";
+
+// Mobile Compression Components (Pack L1)
+export {
+  MobileActionBar,
+  MobileActionButton,
+  MobilePageActions,
+  MobileBackToQueue,
+  type MobileActionBarProps,
+  type MobileActionButtonProps,
+  type MobilePageActionsProps,
+  type MobileBackToQueueProps,
+} from "./mobile-action-bar";
+
+export {
+  MobileSummaryStack,
+  SummaryPill,
+  CompactStatRow,
+  MobileContextHeader,
+  MobileQuickFilters,
+  type MobileSummaryStackProps,
+  type SummaryPillProps,
+  type CompactStatRowProps,
+  type MobileContextHeaderProps,
+  type MobileQuickFiltersProps,
+} from "./mobile-summary-stack";
+
+export {
+  ResponsiveListShell,
+  MobileListCard,
+  MobileQueueCard,
+  ResponsiveTableContainer,
+  MobileEmptyState,
+  type ResponsiveListShellProps,
+  type MobileListCardProps,
+  type MobileQueueCardProps,
+  type ResponsiveTableContainerProps,
+  type MobileEmptyStateProps,
+} from "./responsive-list-shell";
+
+export {
+  CompactPageHeader,
+  MobileDetailHeader,
+  MobileFormHeader,
+  MobileWorkspaceHeader,
+  type CompactPageHeaderProps,
+  type MobileDetailHeaderProps,
+  type MobileFormHeaderProps,
+  type MobileWorkspaceHeaderProps,
+} from "./compact-page-header";
+
+// Loading State Components (Pack L2)
+export {
+  LoadingStatePanel,
+  SectionLoadingState,
+  SkeletonList,
+  DelayedLoadingSpinner,
+  useLoadingState,
+  type LoadingState,
+  type LoadingStatePanelProps,
+  type SectionLoadingStateProps,
+  type SkeletonListProps,
+  type DelayedLoadingSpinnerProps,
+} from "./loading-state-panel";

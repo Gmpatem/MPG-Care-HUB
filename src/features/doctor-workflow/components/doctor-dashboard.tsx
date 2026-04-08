@@ -29,6 +29,7 @@ import { StatusBadge } from "@/components/layout/status-badge";
 import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { HandoffHint } from "@/components/layout/workflow-handoff-card";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
@@ -646,49 +647,79 @@ export function DoctorDashboard({
         emptyDescription="The consultation queue is clear. New patients will appear here when they check in."
       />
 
-      {/* KPI Summary Strip - Primary clinical metrics */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Needs Review"
+      {/* Mobile Summary Stack */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="To Review"
           value={stageCounts.new_consultations}
-          description={stageCounts.new_consultations > 0 
-            ? "New patients waiting for first consultation"
-            : "No new patients waiting"}
-          icon={<Users className="h-4 w-4" />}
           tone={stageCounts.new_consultations > 5 ? "warning" : stageCounts.new_consultations > 0 ? "info" : "neutral"}
-          action={{ label: "View Queue", href: `/h/${hospital.slug}/doctor` }}
+          icon={<Users className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Awaiting Results"
+        <SummaryPill
+          label="Awaiting Labs"
           value={stageCounts.awaiting_results}
-          description={stageCounts.awaiting_results > 0 
-            ? "Cases waiting on lab/investigation results"
-            : "No cases awaiting results"}
-          icon={<FlaskConical className="h-4 w-4" />}
-          tone={stageCounts.awaiting_results > 0 ? "info" : "neutral"}
-          action={{ label: "Check Lab", href: `/h/${hospital.slug}/lab` }}
+          tone={stageCounts.awaiting_results > 0 ? "warning" : "neutral"}
+          icon={<FlaskConical className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Ready for Decision"
+        <SummaryPill
+          label="Ready"
           value={stageCounts.ready_for_final_decision}
-          description={stageCounts.ready_for_final_decision > 0 
-            ? "Results back — ready for final treatment decision"
-            : "No cases ready for finalization"}
-          icon={<ClipboardCheck className="h-4 w-4" />}
           tone={stageCounts.ready_for_final_decision > 0 ? "success" : "neutral"}
-          action={{ label: "Review Now", href: `/h/${hospital.slug}/doctor` }}
+          icon={<ClipboardCheck className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Admissions Pending"
+        <SummaryPill
+          label="Admissions"
           value={stageCounts.admission_requested}
-          description={stageCounts.admission_requested > 0 
-            ? "Patients waiting for ward admission"
-            : "No admission requests pending"}
-          icon={<BedDouble className="h-4 w-4" />}
           tone={stageCounts.admission_requested > 0 ? "warning" : "neutral"}
-          action={{ label: "View Ward", href: `/h/${hospital.slug}/ward` }}
+          icon={<BedDouble className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Needs Review"
+            value={stageCounts.new_consultations}
+            description={stageCounts.new_consultations > 0 
+              ? "New patients waiting for first consultation"
+              : "No new patients waiting"}
+            icon={<Users className="h-4 w-4" />}
+            tone={stageCounts.new_consultations > 5 ? "warning" : stageCounts.new_consultations > 0 ? "info" : "neutral"}
+            action={{ label: "View Queue", href: `/h/${hospital.slug}/doctor` }}
+          />
+          <KpiCard
+            title="Awaiting Results"
+            value={stageCounts.awaiting_results}
+            description={stageCounts.awaiting_results > 0 
+              ? "Cases waiting on lab/investigation results"
+              : "No cases awaiting results"}
+            icon={<FlaskConical className="h-4 w-4" />}
+            tone={stageCounts.awaiting_results > 0 ? "info" : "neutral"}
+            action={{ label: "Check Lab", href: `/h/${hospital.slug}/lab` }}
+          />
+          <KpiCard
+            title="Ready for Decision"
+            value={stageCounts.ready_for_final_decision}
+            description={stageCounts.ready_for_final_decision > 0 
+              ? "Results back — ready for final treatment decision"
+              : "No cases ready for finalization"}
+            icon={<ClipboardCheck className="h-4 w-4" />}
+            tone={stageCounts.ready_for_final_decision > 0 ? "success" : "neutral"}
+            action={{ label: "Review Now", href: `/h/${hospital.slug}/doctor` }}
+          />
+          <KpiCard
+            title="Admissions Pending"
+            value={stageCounts.admission_requested}
+            description={stageCounts.admission_requested > 0 
+              ? "Patients waiting for ward admission"
+              : "No admission requests pending"}
+            icon={<BedDouble className="h-4 w-4" />}
+            tone={stageCounts.admission_requested > 0 ? "warning" : "neutral"}
+            action={{ label: "View Ward", href: `/h/${hospital.slug}/ward` }}
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Attention Panel for clinical priorities */}
       {generatedAttentionItems.length > 0 && (

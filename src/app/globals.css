@@ -222,5 +222,319 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(17, 150, 176, 0.12);
 }
 
+/* ============================================================================
+   Mobile UX Utilities (Pack L1)
+   ============================================================================ */
+
+/* Hide scrollbar for mobile horizontal scroll areas */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Mobile touch target sizing */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.touch-target-lg {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Mobile-optimized line clamping */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Mobile action sheet animation helpers */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.2s ease-out;
+}
+
+/* Mobile viewport height utilities (handles iOS Safari issues) */
+@supports (height: 100dvh) {
+  .h-screen-mobile {
+    height: 100dvh;
+  }
+  .min-h-screen-mobile {
+    min-height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  .h-screen-mobile {
+    height: 100vh;
+  }
+  .min-h-screen-mobile {
+    min-height: 100vh;
+  }
+}
+
+/* Mobile bottom spacing for fixed action bars */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+.mb-safe {
+  margin-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+/* Sticky positioning with backdrop blur */
+.sticky-blur {
+  position: sticky;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Mobile card shadows (subtle lift) */
+.shadow-mobile {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-mobile-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Horizontal scroll snap for mobile carousels */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-start {
+  scroll-snap-align: start;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+}
+
+/* Prevent text selection on interactive elements */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Improve touch response on mobile */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Mobile-optimized focus states */
+@media (hover: none) {
+  .focus-mobile:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================================
+   Low-Bandwidth / Slow-Network UX Utilities (Pack L2)
+   ============================================================================ */
+
+/* Reduced motion for slow devices */
+@media (prefers-reduced-motion: reduce) {
+  .reduce-motion,
+  .reduce-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Skeleton loading shimmer animation */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--muted) 80%, white) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Low-bandwidth image placeholder */
+.img-placeholder {
+  background: var(--muted);
+  position: relative;
+  overflow: hidden;
+}
+
+.img-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    color-mix(in srgb, var(--muted) 90%, white) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s ease-in-out infinite;
+}
+
+/* Loading state opacity transitions */
+.loading-fade {
+  transition: opacity 0.2s ease;
+}
+
+.loading-fade-enter {
+  opacity: 0;
+}
+
+.loading-fade-active {
+  opacity: 1;
+}
+
+/* Retry button pulse animation */
+@keyframes retry-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
+  }
+}
+
+.retry-pulse {
+  animation: retry-pulse 2s ease-in-out infinite;
+}
+
+/* Network status dot pulse */
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Staggered loading animation for lists */
+@keyframes stagger-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item {
+  animation: stagger-fade-in 0.3s ease-out both;
+}
+
+.stagger-item-1 { animation-delay: 0.05s; }
+.stagger-item-2 { animation-delay: 0.1s; }
+.stagger-item-3 { animation-delay: 0.15s; }
+.stagger-item-4 { animation-delay: 0.2s; }
+.stagger-item-5 { animation-delay: 0.25s; }
+
+/* Content visibility for faster initial paint */
+.content-visibility-auto {
+  content-visibility: auto;
+}
+
+/* Prevent layout shift during loading */
+.aspect-stable {
+  contain: layout style;
+}
+
+/* Graceful degradation for slow networks */
+@media (prefers-reduced-data: reduce) {
+  .data-heavy {
+    display: none !important;
+  }
+}
+
+/* Reduced opacity for stale data */
+.data-stale {
+  opacity: 0.7;
+  position: relative;
+}
+
+.data-stale::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(245, 158, 11, 0.03) 10px,
+    rgba(245, 158, 11, 0.03) 20px
+  );
+  pointer-events: none;
+}
 
 

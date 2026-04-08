@@ -9,6 +9,7 @@ import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
   WorkspacePageShell,
@@ -206,50 +207,80 @@ export function BillingDashboardPage({
         emptyDescription="No outstanding balances need collection right now."
       />
 
-      {/* KPI Summary Strip - Primary financial metrics */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Outstanding Balance"
+      {/* Mobile Summary Stack */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="Outstanding"
           value={formatMoney(currency, stats.totalOutstanding)}
-          description={stats.totalOutstanding > 0 
-            ? `${stats.openInvoices} invoice${stats.openInvoices > 1 ? 's' : ''} awaiting payment`
-            : stats.totalInvoices > 0 
-              ? "All invoices paid in full"
-              : "No invoices created yet"}
-          icon={<CreditCard className="h-4 w-4" />}
           tone={stats.totalOutstanding > 0 ? "warning" : stats.totalInvoices > 0 ? "success" : "neutral"}
-          action={{ label: "Review Invoices", href: `/h/${hospitalSlug}/billing/invoices` }}
+          icon={<CreditCard className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Total Collected"
+        <SummaryPill
+          label="Collected"
           value={formatMoney(currency, stats.totalCollected)}
-          description={stats.totalCollected > 0 
-            ? `${collectionRate}% collection rate on total billed`
-            : "No payments recorded yet"}
-          icon={<Wallet className="h-4 w-4" />}
           tone={stats.totalCollected > 0 ? "success" : "neutral"}
-          action={{ label: "View Payments", href: `/h/${hospitalSlug}/billing/payments` }}
+          icon={<Wallet className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Open Invoices"
+        <SummaryPill
+          label="Open"
           value={stats.openInvoices}
-          description={stats.openInvoices > 0 
-            ? "Invoices awaiting payment or follow-up"
-            : "No pending invoices"}
-          icon={<FileText className="h-4 w-4" />}
           tone={stats.openInvoices > 5 ? "warning" : stats.openInvoices > 0 ? "info" : "neutral"}
-          action={{ label: "View Open", href: `/h/${hospitalSlug}/billing/invoices` }}
+          icon={<FileText className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Total Billed"
+        <SummaryPill
+          label="Billed"
           value={formatMoney(currency, stats.totalBilled)}
-          description={stats.totalInvoices > 0 
-            ? `${stats.totalInvoices} total invoice${stats.totalInvoices > 1 ? 's' : ''} created`
-            : "No invoices created yet"}
-          icon={<Receipt className="h-4 w-4" />}
           tone="neutral"
+          icon={<Receipt className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Outstanding Balance"
+            value={formatMoney(currency, stats.totalOutstanding)}
+            description={stats.totalOutstanding > 0 
+              ? `${stats.openInvoices} invoice${stats.openInvoices > 1 ? 's' : ''} awaiting payment`
+              : stats.totalInvoices > 0 
+                ? "All invoices paid in full"
+                : "No invoices created yet"}
+            icon={<CreditCard className="h-4 w-4" />}
+            tone={stats.totalOutstanding > 0 ? "warning" : stats.totalInvoices > 0 ? "success" : "neutral"}
+            action={{ label: "Review Invoices", href: `/h/${hospitalSlug}/billing/invoices` }}
+          />
+          <KpiCard
+            title="Total Collected"
+            value={formatMoney(currency, stats.totalCollected)}
+            description={stats.totalCollected > 0 
+              ? `${collectionRate}% collection rate on total billed`
+              : "No payments recorded yet"}
+            icon={<Wallet className="h-4 w-4" />}
+            tone={stats.totalCollected > 0 ? "success" : "neutral"}
+            action={{ label: "View Payments", href: `/h/${hospitalSlug}/billing/payments` }}
+          />
+          <KpiCard
+            title="Open Invoices"
+            value={stats.openInvoices}
+            description={stats.openInvoices > 0 
+              ? "Invoices awaiting payment or follow-up"
+              : "No pending invoices"}
+            icon={<FileText className="h-4 w-4" />}
+            tone={stats.openInvoices > 5 ? "warning" : stats.openInvoices > 0 ? "info" : "neutral"}
+            action={{ label: "View Open", href: `/h/${hospitalSlug}/billing/invoices` }}
+          />
+          <KpiCard
+            title="Total Billed"
+            value={formatMoney(currency, stats.totalBilled)}
+            description={stats.totalInvoices > 0 
+              ? `${stats.totalInvoices} total invoice${stats.totalInvoices > 1 ? 's' : ''} created`
+              : "No invoices created yet"}
+            icon={<Receipt className="h-4 w-4" />}
+            tone="neutral"
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Attention Panel for billing alerts */}
       {generatedAttentionItems.length > 0 && (

@@ -22,6 +22,7 @@ import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
 import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { HandoffHint } from "@/components/layout/workflow-handoff-card";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
@@ -272,57 +273,87 @@ export function WardDashboardPage({
         emptyDescription="No capacity concerns and no discharge blockers."
       />
 
-      {/* KPI Summary Strip - Primary ward metrics */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Occupancy"
+      {/* Mobile Summary Stack */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="Occupancy"
           value={`${capacityPct}%`}
-          description={capacityPct > 90 
-            ? "Near capacity — consider expediting discharges"
-            : capacityPct > 70 
-              ? "High occupancy — monitor bed availability"
-              : stats.total_beds > 0 
-                ? "Healthy occupancy level"
-                : "No beds configured"}
-          icon={<Users className="h-4 w-4" />}
           tone={capacityPct > 90 ? "warning" : capacityPct > 70 ? "info" : "neutral"}
-          action={{ label: "View Bed Map", href: `/h/${hospitalSlug}/ward/beds` }}
+          icon={<Users className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Available Beds"
+        <SummaryPill
+          label="Available"
           value={stats.available_beds}
-          description={stats.available_beds > 0 
-            ? `${stats.occupied_beds} of ${stats.total_beds} beds currently occupied`
-            : stats.total_beds > 0 
-              ? "All beds occupied — no availability"
-              : "No beds configured"}
-          icon={<BedDouble className="h-4 w-4" />}
           tone={stats.available_beds === 0 && stats.total_beds > 0 ? "danger" : stats.available_beds < 3 ? "warning" : "success"}
-          action={{ label: "Manage Beds", href: `/h/${hospitalSlug}/ward/beds` }}
+          icon={<BedDouble className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Active Admissions"
+        <SummaryPill
+          label="Admissions"
           value={stats.active_admissions}
-          description={stats.newly_admitted > 0 
-            ? `${stats.newly_admitted} newly admitted in last 24h`
-            : stats.active_admissions > 0 
-              ? "Patients currently under ward care"
-              : "No active admissions"}
-          icon={<Bed className="h-4 w-4" />}
           tone={stats.active_admissions > 0 ? "info" : "neutral"}
-          action={{ label: "View Admissions", href: `/h/${hospitalSlug}/ward/admissions` }}
+          icon={<Bed className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Pending Discharges"
+        <SummaryPill
+          label="Discharges"
           value={stats.discharge_requested}
-          description={stats.discharge_requested > 0 
-            ? "Patients ready for discharge — free up beds"
-            : "No discharge requests pending"}
-          icon={<DoorOpen className="h-4 w-4" />}
           tone={stats.discharge_requested > 0 ? "success" : "neutral"}
-          action={{ label: "Process Discharges", href: `/h/${hospitalSlug}/ward/discharges` }}
+          icon={<DoorOpen className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Occupancy"
+            value={`${capacityPct}%`}
+            description={capacityPct > 90 
+              ? "Near capacity — consider expediting discharges"
+              : capacityPct > 70 
+                ? "High occupancy — monitor bed availability"
+                : stats.total_beds > 0 
+                  ? "Healthy occupancy level"
+                  : "No beds configured"}
+            icon={<Users className="h-4 w-4" />}
+            tone={capacityPct > 90 ? "warning" : capacityPct > 70 ? "info" : "neutral"}
+            action={{ label: "View Bed Map", href: `/h/${hospitalSlug}/ward/beds` }}
+          />
+          <KpiCard
+            title="Available Beds"
+            value={stats.available_beds}
+            description={stats.available_beds > 0 
+              ? `${stats.occupied_beds} of ${stats.total_beds} beds currently occupied`
+              : stats.total_beds > 0 
+                ? "All beds occupied — no availability"
+                : "No beds configured"}
+            icon={<BedDouble className="h-4 w-4" />}
+            tone={stats.available_beds === 0 && stats.total_beds > 0 ? "danger" : stats.available_beds < 3 ? "warning" : "success"}
+            action={{ label: "Manage Beds", href: `/h/${hospitalSlug}/ward/beds` }}
+          />
+          <KpiCard
+            title="Active Admissions"
+            value={stats.active_admissions}
+            description={stats.newly_admitted > 0 
+              ? `${stats.newly_admitted} newly admitted in last 24h`
+              : stats.active_admissions > 0 
+                ? "Patients currently under ward care"
+                : "No active admissions"}
+            icon={<Bed className="h-4 w-4" />}
+            tone={stats.active_admissions > 0 ? "info" : "neutral"}
+            action={{ label: "View Admissions", href: `/h/${hospitalSlug}/ward/admissions` }}
+          />
+          <KpiCard
+            title="Pending Discharges"
+            value={stats.discharge_requested}
+            description={stats.discharge_requested > 0 
+              ? "Patients ready for discharge — free up beds"
+              : "No discharge requests pending"}
+            icon={<DoorOpen className="h-4 w-4" />}
+            tone={stats.discharge_requested > 0 ? "success" : "neutral"}
+            action={{ label: "Process Discharges", href: `/h/${hospitalSlug}/ward/discharges` }}
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Two Column Layout */}
       <WorkspaceTwoColumnLayout

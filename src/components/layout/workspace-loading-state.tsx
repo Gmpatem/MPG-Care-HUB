@@ -1,6 +1,11 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Reduced motion check for low-bandwidth/low-power devices
+const prefersReducedMotion = typeof window !== "undefined" 
+  ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
+  : false;
+
 export type WorkspaceLoadingStateProps = {
   className?: string;
   /** Number of stat cards to show (default: 4) */

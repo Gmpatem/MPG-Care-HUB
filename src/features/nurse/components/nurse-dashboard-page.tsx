@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
   WorkspacePageShell,
@@ -676,50 +677,80 @@ export function NurseDashboardPage({
         emptyDescription="No vitals are overdue and no discharge tasks are pending."
       />
 
-      {/* KPI Summary Strip - Primary nursing metrics */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Active Admissions"
+      {/* Mobile Summary Stack */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="Admissions"
           value={stats.total_admissions}
-          description={stats.total_admissions > 0 
-            ? `${stats.new_admissions} newly admitted in last 24h`
-            : "No patients currently admitted"}
-          icon={<BedDouble className="h-4 w-4" />}
           tone={stats.total_admissions > 0 ? "info" : "neutral"}
-          action={{ label: "View Patients", href: `/h/${hospitalSlug}/nurse` }}
+          icon={<BedDouble className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Discharge Pending"
+        <SummaryPill
+          label="Discharges"
           value={stats.discharge_requested}
-          description={stats.discharge_requested > 0 
-            ? "Patients ready for discharge — complete checklist"
-            : "No discharge requests pending"}
-          icon={<ClipboardCheck className="h-4 w-4" />}
           tone={stats.discharge_requested > 0 ? "success" : "neutral"}
-          action={{ label: "Process Discharges", href: `/h/${hospitalSlug}/ward/discharges` }}
+          icon={<ClipboardCheck className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Vitals Attention"
+        <SummaryPill
+          label="Vitals"
           value={stats.overdue_vitals + stats.missing_vitals}
-          description={stats.overdue_vitals > 0 
-            ? `${stats.overdue_vitals} overdue, ${stats.missing_vitals} missing — need immediate attention`
-            : stats.missing_vitals > 0 
-              ? `${stats.missing_vitals} patients need vitals recorded`
-              : "All vitals up to date"}
-          icon={<HeartPulse className="h-4 w-4" />}
           tone={stats.overdue_vitals > 0 ? "danger" : stats.missing_vitals > 0 ? "warning" : "success"}
-          action={{ label: "Record Vitals", href: `/h/${hospitalSlug}/nurse` }}
+          icon={<HeartPulse className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="New Admissions"
+        <SummaryPill
+          label="New"
           value={stats.new_admissions}
-          description={stats.new_admissions > 0 
-            ? "Patients admitted within last 24 hours need assessment"
-            : "No new admissions in last 24h"}
-          icon={<UserRound className="h-4 w-4" />}
           tone={stats.new_admissions > 0 ? "info" : "neutral"}
+          icon={<UserRound className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Active Admissions"
+            value={stats.total_admissions}
+            description={stats.total_admissions > 0 
+              ? `${stats.new_admissions} newly admitted in last 24h`
+              : "No patients currently admitted"}
+            icon={<BedDouble className="h-4 w-4" />}
+            tone={stats.total_admissions > 0 ? "info" : "neutral"}
+            action={{ label: "View Patients", href: `/h/${hospitalSlug}/nurse` }}
+          />
+          <KpiCard
+            title="Discharge Pending"
+            value={stats.discharge_requested}
+            description={stats.discharge_requested > 0 
+              ? "Patients ready for discharge — complete checklist"
+              : "No discharge requests pending"}
+            icon={<ClipboardCheck className="h-4 w-4" />}
+            tone={stats.discharge_requested > 0 ? "success" : "neutral"}
+            action={{ label: "Process Discharges", href: `/h/${hospitalSlug}/ward/discharges` }}
+          />
+          <KpiCard
+            title="Vitals Attention"
+            value={stats.overdue_vitals + stats.missing_vitals}
+            description={stats.overdue_vitals > 0 
+              ? `${stats.overdue_vitals} overdue, ${stats.missing_vitals} missing — need immediate attention`
+              : stats.missing_vitals > 0 
+                ? `${stats.missing_vitals} patients need vitals recorded`
+                : "All vitals up to date"}
+            icon={<HeartPulse className="h-4 w-4" />}
+            tone={stats.overdue_vitals > 0 ? "danger" : stats.missing_vitals > 0 ? "warning" : "success"}
+            action={{ label: "Record Vitals", href: `/h/${hospitalSlug}/nurse` }}
+          />
+          <KpiCard
+            title="New Admissions"
+            value={stats.new_admissions}
+            description={stats.new_admissions > 0 
+              ? "Patients admitted within last 24 hours need assessment"
+              : "No new admissions in last 24h"}
+            icon={<UserRound className="h-4 w-4" />}
+            tone={stats.new_admissions > 0 ? "info" : "neutral"}
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Two Column Layout */}
       <WorkspaceTwoColumnLayout

@@ -24,6 +24,7 @@ import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { HandoffHint } from "@/components/layout/workflow-handoff-card";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
   WorkspacePageShell,
@@ -251,51 +252,81 @@ export function FrontdeskDashboard({
         </Card>
       </div>
 
-      {/* KPI Summary Strip - Primary operational metrics */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Appointments Today"
+      {/* Mobile Summary Stack - Horizontal scrollable on mobile */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="Appointments"
           value={data.appointments_today ?? 0}
-          description={(data.checked_in_today ?? 0) > 0 
-            ? `${data.checked_in_today} checked in, ${(data.appointments_today ?? 0) - (data.checked_in_today ?? 0)} remaining`
-            : "No patients checked in yet"}
-          icon={<CalendarDays className="h-4 w-4" />}
           tone={(data.appointments_today ?? 0) > 0 ? "info" : "neutral"}
-          action={{ label: "View Schedule", href: `/h/${hospital.slug}/appointments` }}
+          icon={<CalendarDays className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="In Queue"
+        <SummaryPill
+          label="In Queue"
           value={waitingCount}
-          description={checkedInCount > 0 
-            ? `${checkedInCount} checked in and waiting to be seen`
-            : waitingCount > 0 
-              ? `${waitingCount} patient${waitingCount > 1 ? 's' : ''} in queue`
-              : "No patients currently waiting"}
-          icon={<Users className="h-4 w-4" />}
-          tone={checkedInCount > 5 ? "warning" : checkedInCount > 0 ? "highlight" : "neutral"}
-          action={{ label: "Manage Queue", href: `/h/${hospital.slug}/frontdesk/queue` }}
+          tone={checkedInCount > 5 ? "warning" : checkedInCount > 0 ? "success" : "neutral"}
+          icon={<Users className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Emergency"
+        <SummaryPill
+          label="Emergency"
           value={data.emergency_visits_today ?? 0}
-          description={(data.emergency_visits_today ?? 0) > 0 
-            ? "Emergency visit(s) require immediate triage"
-            : "No emergency visits today"}
-          icon={<Siren className="h-4 w-4" />}
           tone={(data.emergency_visits_today ?? 0) > 0 ? "danger" : "neutral"}
-          action={{ label: "View Queue", href: `/h/${hospital.slug}/frontdesk/queue` }}
+          icon={<Siren className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Payments Today"
+        <SummaryPill
+          label="Payments"
           value={data.payments_today_count ?? 0}
-          description={(data.payments_today_amount ?? 0) > 0 
-            ? `₱${Number(data.payments_today_amount).toFixed(0)} collected today`
-            : "No payments recorded yet"}
-          icon={<CreditCard className="h-4 w-4" />}
           tone={(data.payments_today_count ?? 0) > 0 ? "success" : "neutral"}
-          action={{ label: "View Payments", href: `/h/${hospital.slug}/billing/payments` }}
+          icon={<CreditCard className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip - Primary operational metrics */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Appointments Today"
+            value={data.appointments_today ?? 0}
+            description={(data.checked_in_today ?? 0) > 0 
+              ? `${data.checked_in_today} checked in, ${(data.appointments_today ?? 0) - (data.checked_in_today ?? 0)} remaining`
+              : "No patients checked in yet"}
+            icon={<CalendarDays className="h-4 w-4" />}
+            tone={(data.appointments_today ?? 0) > 0 ? "info" : "neutral"}
+            action={{ label: "View Schedule", href: `/h/${hospital.slug}/appointments` }}
+          />
+          <KpiCard
+            title="In Queue"
+            value={waitingCount}
+            description={checkedInCount > 0 
+              ? `${checkedInCount} checked in and waiting to be seen`
+              : waitingCount > 0 
+                ? `${waitingCount} patient${waitingCount > 1 ? 's' : ''} in queue`
+                : "No patients currently waiting"}
+            icon={<Users className="h-4 w-4" />}
+            tone={checkedInCount > 5 ? "warning" : checkedInCount > 0 ? "highlight" : "neutral"}
+            action={{ label: "Manage Queue", href: `/h/${hospital.slug}/frontdesk/queue` }}
+          />
+          <KpiCard
+            title="Emergency"
+            value={data.emergency_visits_today ?? 0}
+            description={(data.emergency_visits_today ?? 0) > 0 
+              ? "Emergency visit(s) require immediate triage"
+              : "No emergency visits today"}
+            icon={<Siren className="h-4 w-4" />}
+            tone={(data.emergency_visits_today ?? 0) > 0 ? "danger" : "neutral"}
+            action={{ label: "View Queue", href: `/h/${hospital.slug}/frontdesk/queue` }}
+          />
+          <KpiCard
+            title="Payments Today"
+            value={data.payments_today_count ?? 0}
+            description={(data.payments_today_amount ?? 0) > 0 
+              ? `₱${Number(data.payments_today_amount).toFixed(0)} collected today`
+              : "No payments recorded yet"}
+            icon={<CreditCard className="h-4 w-4" />}
+            tone={(data.payments_today_count ?? 0) > 0 ? "success" : "neutral"}
+            action={{ label: "View Payments", href: `/h/${hospital.slug}/billing/payments` }}
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Attention Panel - Shows urgent items */}
       {(generatedAttentionItems.length > 0 || (data.emergency_visits_today ?? 0) > 0) && (
@@ -469,7 +500,7 @@ function QueueList({
               asChild
               variant="ghost"
               size="sm"
-              className="shrink-0 opacity-0 group-hover:opacity-100"
+              className="shrink-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <Link href={`/h/${hospitalSlug}/patients/${row.patient_id}`}>
                 View

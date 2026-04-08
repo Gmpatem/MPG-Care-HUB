@@ -15,6 +15,7 @@ import { WorkflowStepCard } from "@/components/layout/workflow-step-card";
 import { AttentionPanel, ActivityFeed } from "@/components/layout";
 import type { AttentionItem, ActivityItem } from "@/components/layout";
 import { KpiCard, KpiSummaryStrip } from "@/components/layout/kpi-card";
+import { MobileSummaryStack, SummaryPill } from "@/components/layout/mobile-summary-stack";
 import { TodayViewPanel, type TodayItem } from "@/components/layout/today-view-panel";
 import {
   WorkspacePageShell,
@@ -156,49 +157,79 @@ export function LabDashboard({
         emptyDescription="The lab queue is clear. New orders will appear here when doctors submit them."
       />
 
-      {/* KPI Summary Strip - Primary lab metrics with interpretation */}
-      <KpiSummaryStrip>
-        <KpiCard
-          title="Pending Specimens"
+      {/* Mobile Summary Stack */}
+      <MobileSummaryStack className="lg:hidden">
+        <SummaryPill
+          label="Pending"
           value={pendingOrders}
-          description={pendingOrders > 0 
-            ? "Orders awaiting specimen collection or processing"
-            : "No orders pending — lab queue is clear"}
-          icon={<ClipboardList className="h-4 w-4" />}
           tone={pendingOrders > 10 ? "warning" : pendingOrders > 0 ? "info" : "neutral"}
-          action={{ label: "Process Queue", href: `/h/${hospitalSlug}/lab/orders` }}
+          icon={<ClipboardList className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="In Progress"
+        <SummaryPill
+          label="In Progress"
           value={activeTests}
-          description={activeTests > 0 
-            ? "Orders with specimens being processed"
-            : "No active orders in processing"}
-          icon={<Clock className="h-4 w-4" />}
           tone={activeTests > 0 ? "info" : "neutral"}
-          action={{ label: "View Active", href: `/h/${hospitalSlug}/lab/orders` }}
+          icon={<Clock className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Pending Review"
+        <SummaryPill
+          label="Urgent"
           value={urgentOrders}
-          description={urgentOrders > 0 
-            ? "Urgent orders awaiting result review"
-            : "No urgent orders pending review"}
-          icon={<FlaskConical className="h-4 w-4" />}
           tone={urgentOrders > 0 ? "danger" : "neutral"}
-          action={{ label: "Review Results", href: `/h/${hospitalSlug}/lab/orders` }}
+          icon={<FlaskConical className="h-3.5 w-3.5" />}
         />
-        <KpiCard
-          title="Completed Today"
+        <SummaryPill
+          label="Completed"
           value={completedToday}
-          description={completedToday > 0 
-            ? "Orders finished and returned to doctors"
-            : "No orders completed yet today"}
-          icon={<CheckCircle2 className="h-4 w-4" />}
           tone={completedToday > 0 ? "success" : "neutral"}
-          action={{ label: "View Completed", href: `/h/${hospitalSlug}/lab/orders` }}
+          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
         />
-      </KpiSummaryStrip>
+      </MobileSummaryStack>
+
+      {/* Desktop KPI Summary Strip */}
+      <div className="hidden lg:block">
+        <KpiSummaryStrip>
+          <KpiCard
+            title="Pending Specimens"
+            value={pendingOrders}
+            description={pendingOrders > 0 
+              ? "Orders awaiting specimen collection or processing"
+              : "No orders pending — lab queue is clear"}
+            icon={<ClipboardList className="h-4 w-4" />}
+            tone={pendingOrders > 10 ? "warning" : pendingOrders > 0 ? "info" : "neutral"}
+            action={{ label: "Process Queue", href: `/h/${hospitalSlug}/lab/orders` }}
+          />
+          <KpiCard
+            title="In Progress"
+            value={activeTests}
+            description={activeTests > 0 
+              ? "Orders with specimens being processed"
+              : "No active orders in processing"}
+            icon={<Clock className="h-4 w-4" />}
+            tone={activeTests > 0 ? "info" : "neutral"}
+            action={{ label: "View Active", href: `/h/${hospitalSlug}/lab/orders` }}
+          />
+          <KpiCard
+            title="Pending Review"
+            value={urgentOrders}
+            description={urgentOrders > 0 
+              ? "Urgent orders awaiting result review"
+              : "No urgent orders pending review"}
+            icon={<FlaskConical className="h-4 w-4" />}
+            tone={urgentOrders > 0 ? "danger" : "neutral"}
+            action={{ label: "Review Results", href: `/h/${hospitalSlug}/lab/orders` }}
+          />
+          <KpiCard
+            title="Completed Today"
+            value={completedToday}
+            description={completedToday > 0 
+              ? "Orders finished and returned to doctors"
+              : "No orders completed yet today"}
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            tone={completedToday > 0 ? "success" : "neutral"}
+            action={{ label: "View Completed", href: `/h/${hospitalSlug}/lab/orders` }}
+          />
+        </KpiSummaryStrip>
+      </div>
 
       {/* Attention Panel for urgent lab work */}
       {(generatedAttentionItems.length > 0 || urgentOrders > 0 || pendingOrders > 10) && (

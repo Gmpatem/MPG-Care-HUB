@@ -3,11 +3,9 @@ import { Button } from "@/components/ui/button";
 import { WorkspacePageHeader } from "@/components/layout/workspace-page-header";
 import { WorkspaceSectionHeader } from "@/components/layout/workspace-section-header";
 import { WorkspaceEmptyState } from "@/components/layout/workspace-empty-state";
+import { MobileListCard } from "@/components/layout/responsive-list-shell";
 import { StatusBadge } from "@/components/layout/status-badge";
-import {
-  WorkspacePageShell,
-  WorkspaceTwoColumnLayout,
-} from "@/components/layout/workspace-page-shell";
+import { WorkspacePageShell } from "@/components/layout/workspace-page-shell";
 import { getPharmacyDashboardData } from "@/features/pharmacy/server/get-pharmacy-dashboard-data";
 import { PharmacyWorkflowCard } from "@/features/pharmacy/components/pharmacy-workflow-card";
 
@@ -90,33 +88,25 @@ export default async function PharmacyDashboardRoute({ params }: Props) {
         ) : (
           <div className="space-y-3">
             {data.rows.map((row) => (
-              <div
+              <MobileListCard
                 key={row.id}
-                className="flex flex-col gap-4 rounded-xl border bg-background p-4 lg:flex-row lg:items-start lg:justify-between"
-              >
-                <div className="min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium">{row.patient_full_name}</h3>
-                    <PrescriptionStatusBadge 
-                      status={row.status} 
-                      stockReady={row.stock_ready}
-                      stockBlocked={row.stock_blocked}
-                    />
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {row.patient_number ?? "No patient number"} · {row.item_count} items · Prescribed {formatDateTime(row.prescribed_at)}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 gap-2">
-                  <Button asChild variant="outline" size="sm">
+                title={row.patient_full_name}
+                subtitle={`${row.patient_number ?? "No patient number"} · ${row.item_count} items · Prescribed ${formatDateTime(row.prescribed_at)}`}
+                status={
+                  <PrescriptionStatusBadge 
+                    status={row.status} 
+                    stockReady={row.stock_ready}
+                    stockBlocked={row.stock_blocked}
+                  />
+                }
+                action={
+                  <Button asChild variant="outline" size="sm" className="w-full lg:w-auto">
                     <Link href={`/h/${hospitalSlug}/pharmacy/prescriptions/${row.id}`}>
                       Open Prescription
                     </Link>
                   </Button>
-                </div>
-              </div>
+                }
+              />
             ))}
           </div>
         )}
